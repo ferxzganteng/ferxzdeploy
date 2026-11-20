@@ -1,0 +1,2606 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5" />
+  <title>FERXZ DEPLOY — Platform Deploy No. 1</title>
+  <meta name="description" content="Publikasikan 1 file HTML atau ZIP dalam hitungan detik.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+          colors: { brand: { 500: '#3b82f6', 600: '#2563eb' } }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    :root { --brand-color: #3b82f6; --brand-glow: rgba(59, 130, 246, 0.5); --bg-main: #f8fafc; --text-main: #0f172a; --panel-bg: rgba(255, 255, 255, 0.8); --panel-border: rgba(0, 0, 0, 0.1); }
+    .dark { --bg-main: #030712; --text-main: #f8fafc; --panel-bg: rgba(17, 24, 39, 0.7); --panel-border: rgba(255, 255, 255, 0.08); }
+    
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); overflow-x: hidden; transition: background-color 0.3s, color 0.3s; min-height: 100vh; }
+
+    .bg-grid { position: fixed; inset: 0; background-image: linear-gradient(to right, rgba(128, 128, 128, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 128, 128, 0.05) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(circle at center 30%, black, transparent 80%); pointer-events: none; z-index: 0; }
+    .glow-orb { position: absolute; border-radius: 50%; filter: blur(120px); z-index: 0; pointer-events: none; }
+
+    .glass { background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid var(--panel-border); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); transition: background 0.3s, border 0.3s; }
+    .dark .glass { box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
+
+    .tilt-container { perspective: 1000px; }
+    .tilt-element { transform-style: preserve-3d; transition: transform 0.2s ease-out; }
+    @keyframes float-tilt { 0% { transform: translateY(0px) rotateX(10deg) rotateY(-10deg); } 50% { transform: translateY(-15px) rotateX(-5deg) rotateY(10deg); } 100% { transform: translateY(0px) rotateX(10deg) rotateY(-10deg); } }
+    .text-3d-tilt { background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #1d4ed8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0px 15px 25px var(--brand-glow)); animation: float-tilt 8s ease-in-out infinite; transform-style: preserve-3d; }
+
+    .input-pro { width: 100%; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--panel-border); background: rgba(128, 128, 128, 0.05); color: var(--text-main); font-size: 14px; transition: 0.3s; }
+    .input-pro:focus { outline: none; border-color: var(--brand-color); box-shadow: 0 0 0 3px var(--brand-glow); }
+
+    .hidden { display: none !important; }
+    
+    #toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px; pointer-events: none; }
+    .toast { background: var(--panel-bg); backdrop-filter: blur(10px); color: var(--text-main); padding: 16px; border-radius: 12px; font-size: 14px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; border: 1px solid var(--panel-border); border-left: 4px solid var(--brand-color); animation: slideDown 0.4s forwards; pointer-events: auto; }
+    .toast.error { border-left-color: #ef4444; }
+    .toast.bot { border-left-color: #10b981; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 50; opacity: 0; pointer-events: none; transition: 0.3s; padding: 16px; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-box { background: var(--bg-main); border: 1px solid var(--panel-border); border-radius: 20px; width: 100%; max-width: 32rem; max-height: 90vh; overflow-y: auto; position: relative; transform: scale(0.95); transition: 0.3s; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+    .modal-overlay.active .modal-box { transform: scale(1); }
+    .modal-box.wide { max-width: 42rem; }
+
+    .tab-btn { flex: 1; padding: 12px 10px; font-size: 12px; font-weight: 600; text-align: center; border-bottom: 2px solid transparent; color: #94a3b8; cursor: pointer; transition: 0.3s; white-space: nowrap; background: transparent; border-top: none; border-left: none; border-right: none; min-width: 70px; }
+    .tab-btn.active { border-bottom-color: var(--brand-color); color: var(--brand-color); }
+
+    #botWidget { position: fixed; bottom: 20px; right: 20px; z-index: 60; background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid var(--panel-border); border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; transition: all 0.3s; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    #botWidget:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
+    .bot-dot { width: 10px; height: 10px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981; animation: botPulse 2s infinite; }
+    .bot-dot.repairing { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; animation-duration: 0.5s; }
+    .bot-dot.alert { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+    @keyframes botPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    
+    #botLog { position: fixed; bottom: 75px; right: 20px; z-index: 59; width: 320px; max-width: calc(100vw - 40px); max-height: 300px; overflow-y: auto; background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid var(--panel-border); border-radius: 16px; padding: 14px; font-size: 12px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    #botLog.open { display: block; }
+    #botLog::-webkit-scrollbar { width: 4px; }
+    #botLog::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
+    .bot-log-item { padding: 6px 8px; margin-bottom: 4px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.4; }
+    .bot-log-info { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+    .bot-log-success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .bot-log-warn { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+    .bot-log-error { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+    .upload-option-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+    .upload-option-btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .upload-option-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .upload-option-btn.primary { background: #3b82f6; color: white; } .upload-option-btn.primary:hover:not(:disabled) { background: #2563eb; }
+    .upload-option-btn.danger { background: rgba(239,68,68,0.1); color: #ef4444; border-color: rgba(239,68,68,0.2); } .upload-option-btn.danger:hover:not(:disabled) { background: rgba(239,68,68,0.2); }
+    
+    .file-chip { display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 10px 12px; background: rgba(0,0,0,0.05); border: 1px solid var(--panel-border); border-radius: 8px; font-family: 'JetBrains Mono', monospace; }
+    .dark .file-chip { background: rgba(255,255,255,0.05); }
+
+    button { position: relative; z-index: 1; }
+    button:active:not(:disabled) { transform: scale(0.98); }
+
+    .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--panel-border); }
+    .setting-row:last-child { border-bottom: none; }
+    .toggle-switch { position: relative; width: 44px; height: 24px; background: #cbd5e1; border-radius: 12px; cursor: pointer; transition: 0.3s; flex-shrink: 0; }
+    .dark .toggle-switch { background: #334155; }
+    .toggle-switch.active { background: #3b82f6; }
+    .toggle-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.3s; }
+    .toggle-switch.active::after { left: 23px; }
+
+    .compact-mode .glass { padding: 12px !important; }
+    .compact-mode .mb-6 { margin-bottom: 12px !important; }
+    .compact-mode .mb-10 { margin-bottom: 16px !important; }
+    .compact-mode .p-5 { padding: 12px !important; }
+    .compact-mode .p-8 { padding: 16px !important; }
+    .compact-mode #workspace { padding-top: 16px !important; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeInUp 0.5s ease-out forwards; }
+
+    @media (max-width: 640px) {
+      .tab-btn { font-size: 10px; padding: 10px 6px; min-width: 60px; }
+      #botLog { width: calc(100vw - 40px); }
+      .modal-box.wide { max-width: 100%; }
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div id="botWidget" title="Guardian Bot — Klik untuk lihat log">
+    <div class="bot-dot" id="botDot"></div>
+    <span class="text-xs font-bold">GuardianBot</span>
+  </div>
+  <div id="botLog">
+    <div class="flex items-center justify-between mb-2 pb-2 border-b" style="border-color: var(--panel-border);">
+      <span class="font-bold text-xs">🤖 Bot Activity Log</span>
+      <button id="clearBotLogBtn" class="text-[10px] text-slate-500 hover:text-red-500">Clear</button>
+    </div>
+    <div id="botLogContent"></div>
+  </div>
+
+  <div class="bg-grid"></div>
+  <div class="glow-orb w-[500px] h-[500px] bg-blue-600/20 top-[-100px] left-[-100px]"></div>
+  <div id="toast-container"></div>
+
+  <header class="fixed top-0 w-full z-40 border-b border-gray-200 dark:border-white/5 bg-[var(--bg-main)]/80 backdrop-blur-md transition-colors duration-300">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button id="btnOwnerLogin" title="Owner Access" aria-label="Owner Access" 
+          class="w-9 h-9 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-blue-500/20 items-center justify-center text-slate-500 dark:text-slate-400 hover:text-blue-500 transition-colors border border-black/5 dark:border-white/5 cursor-pointer flex">
+          <svg id="ownerIconLock" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+          </svg>
+          <svg id="ownerIconShield" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+        </button>
+        
+        <a href="#" id="logoArea" class="flex items-center gap-2 cursor-pointer">
+          <div class="w-8 h-8 rounded bg-brand-500 flex items-center justify-center text-white shadow-[0_0_15px_var(--brand-glow)]">
+            <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current" id="defaultLogo"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <img src="" id="customLogoImg" class="w-full h-full object-cover hidden rounded" alt="logo">
+          </div>
+          <span class="font-bold text-lg tracking-tight" id="headerSiteName">FERXZ DEPLOY</span>
+        </a>
+      </div>
+      <nav class="hidden md:flex items-center gap-6">
+        <button data-nav="homepage" class="text-sm font-medium text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors">Beranda</button>
+        <button data-nav="workspace" class="text-sm font-medium text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors">Workspace</button>
+        <button data-modal="docsModal" class="text-sm font-medium text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors">Dokumentasi</button>
+      </nav>
+      <div class="flex items-center gap-2">
+        <button id="themeToggle" aria-label="Ganti Tema" class="w-9 h-9 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+          <svg id="iconMoon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 hidden dark:block"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>
+          <svg id="iconSun" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 block dark:hidden"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="homepage" class="relative z-10 pt-32 pb-20">
+    <section class="max-w-5xl mx-auto px-4 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 mb-6">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+        <span class="text-[11px] font-semibold text-blue-500 dark:text-blue-400 uppercase tracking-wider">Protected by GuardianBot</span>
+      </div>
+      <h1 class="text-4xl sm:text-6xl md:text-7xl font-extrabold leading-[1.1] tracking-tight mb-6" id="heroTitle">Deploy Website<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600" id="heroTitleHighlight">Tanpa Batas.</span></h1>
+      <p class="text-base sm:text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto mb-10 font-medium px-2" id="heroDesc">Upload 1 file HTML atau ZIP, langsung online dalam hitungan detik.</p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+        <button id="startDeployBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-8 py-3.5 rounded-xl font-bold text-sm transition-all shadow-[0_0_20px_var(--brand-glow)] cursor-pointer">
+          Mulai Deploy Sekarang <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+        </button>
+      </div>
+    </section>
+    <section class="max-w-4xl mx-auto px-4 relative">
+      <div class="glass rounded-2xl p-2 sm:p-4 border border-black/10 dark:border-white/10 shadow-2xl relative overflow-hidden" id="bannerContainer">
+        <div class="bg-[#0d1117] rounded-xl p-6 sm:p-12 h-[300px] sm:h-[400px] flex items-center justify-center relative" id="defaultBannerContent">
+          <div class="tilt-container relative z-10" id="tiltArea">
+            <h2 id="secretCodeTrigger" class="text-6xl sm:text-8xl md:text-[10rem] font-black tracking-tighter text-3d-tilt select-none cursor-default tilt-element">CODE</h2>
+          </div>
+        </div>
+        <img src="" id="customBannerImg" class="w-full h-full object-cover hidden absolute inset-0 z-20 rounded-2xl" alt="banner">
+      </div>
+    </section>
+  </main>
+
+  <main id="workspace" class="hidden relative z-10 pt-24 pb-24">
+    <div class="max-w-4xl mx-auto px-4">
+      <button data-nav="homepage" class="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white mb-8 cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg> Kembali
+      </button>
+      <div class="mb-10">
+        <h1 class="text-2xl sm:text-3xl font-bold mb-2">Workspace Deploy</h1>
+        <p class="text-slate-500 dark:text-slate-400 text-sm">Upload <span class="font-bold text-blue-500">1 file</span> saja (HTML atau ZIP).</p>
+      </div>
+
+      <!-- STEP 01: UPLOAD 1 FILE -->
+      <div class="glass rounded-2xl p-5 sm:p-8 mb-6 relative">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-xs font-mono font-bold text-blue-500 bg-blue-500/10 px-2 py-1 rounded">01</span>
+          <h2 class="text-lg font-bold">Upload 1 File</h2>
+        </div>
+        
+        <!-- Drop Zone -->
+        <div id="dropZone" class="border-2 border-dashed border-black/10 dark:border-white/10 rounded-xl p-6 sm:p-8 text-center bg-black/5 dark:bg-white/5 relative transition-all hover:border-blue-500/50 cursor-pointer">
+          <div class="w-16 h-16 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+          </div>
+          <p class="font-semibold text-sm mb-2">Tarik file atau klik untuk memilih</p>
+          <p class="text-[12px] text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
+            Sertakan HTML, stylesheet, script, gambar, font, dan aset lain yang dipakai situs.
+          </p>
+          <p class="text-[10px] text-slate-400 dark:text-slate-500 mb-2">
+            <span class="font-bold text-blue-500">HTML</span> · <span class="font-bold text-blue-500">CSS</span> · <span class="font-bold text-blue-500">JS</span> · <span class="font-bold text-blue-500">images</span> · <span class="font-bold text-blue-500">fonts</span>
+          </p>
+          <p class="text-[10px] text-slate-400 dark:text-slate-500">Max 50MB · Hanya 1 file (HTML atau ZIP)</p>
+        </div>
+        
+        <!-- Tombol Aksi -->
+        <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <button id="pickFileBtn" class="upload-option-btn primary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Pilih File
+          </button>
+          <button id="clearFilesBtn" class="upload-option-btn danger" disabled>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Hapus File
+          </button>
+        </div>
+        
+        <!-- Input file -->
+        <input type="file" id="fileInput" class="hidden" accept=".zip,.html,.htm">
+        
+        <!-- File terpilih -->
+        <div id="fileListContainer" class="mt-4 hidden">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-bold text-slate-500">File Terpilih:</p>
+            <p id="fileCountLabel" class="text-[10px] text-blue-500 font-bold"></p>
+          </div>
+          <div id="fileList" class="max-h-40 overflow-y-auto space-y-1.5 pr-2"></div>
+        </div>
+      </div>
+
+      <!-- STEP 02: KONFIGURASI DOMAIN -->
+      <div class="glass rounded-2xl p-5 sm:p-8 mb-6 relative">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-xs font-mono font-bold text-blue-500 bg-blue-500/10 px-2 py-1 rounded">02</span>
+          <h2 class="text-lg font-bold">Pilih domain</h2>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">Tentukan alamat publik untuk website Anda. Pilih domain gratis dari Vercel, atau gunakan domain yang sudah Anda miliki.</p>
+
+        <!-- Pilihan Domain -->
+        <div class="space-y-2 mb-6">
+          <!-- Opsi Vercel Domain -->
+          <div id="optVercel" class="border border-blue-500/50 bg-blue-500/5 rounded-xl p-3 flex items-center gap-3 cursor-pointer transition-all">
+            <div class="w-10 h-10 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current"><path d="M12 2L2 22h20L12 2z"/></svg>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Vercel Domain</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Gratis, cepat, dan siap dipakai</p>
+            </div>
+          </div>
+
+          <!-- Opsi Custom Domain -->
+          <div id="optCustom" class="border border-black/10 dark:border-white/10 bg-transparent rounded-xl p-3 flex items-center gap-3 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5">
+            <div class="w-10 h-10 rounded-lg bg-black/5 dark:bg-white/5 text-slate-500 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Custom Domain</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Gunakan alamat brand Anda sendiri</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Vercel Domain -->
+        <div id="panelVercel">
+          <label class="block text-xs font-bold mb-2">Nama proyek</label>
+          <input type="text" id="projectName" placeholder="my-awesome-project" class="input-pro font-mono mb-2">
+          <p class="text-[10px] text-slate-500 mb-3">Gunakan huruf kecil, angka, dan tanda hubung. Nama ini akan menjadi bagian dari alamat Vercel Anda.</p>
+          <div class="bg-black/5 dark:bg-black/50 border border-black/5 dark:border-white/5 rounded-lg p-3 flex items-center text-sm font-mono overflow-hidden">
+            <span class="text-slate-400 mr-1 shrink-0"><svg viewBox="0 0 24 24" class="w-4 h-4 fill-current inline-block"><path d="M12 2L2 22h20L12 2z"/></svg></span>
+            <span id="urlPreview" class="text-slate-500 truncate">my-awesome-project</span><span class="font-bold shrink-0">.vercel.app</span>
+          </div>
+        </div>
+
+        <!-- Input Custom Domain -->
+        <div id="panelCustom" class="hidden">
+          <label class="block text-xs font-bold mb-2">Custom Domain</label>
+          <p class="text-[11px] text-slate-500 mb-2">Gunakan domain milik Anda sendiri dengan ekstensi yang valid, seperti <b>.com</b> atau <b>.id</b>.</p>
+          <input type="text" id="customDomainInput" placeholder="www.brand-anda.com" class="input-pro font-mono mb-3">
+          
+          <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex gap-2 items-start text-[11px] text-red-600 dark:text-red-400">
+            <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <p>Setelah deployment, arahkan CNAME domain Anda ke <span class="font-bold font-mono" id="cnameTargetText">nama-proyek.vercel.app</span>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 03 -->
+      <div class="glass rounded-2xl p-5 sm:p-8 mb-6 relative">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-xs font-mono font-bold text-blue-500 bg-blue-500/10 px-2 py-1 rounded">03</span>
+          <h2 class="text-lg font-bold">Deploy</h2>
+        </div>
+        <button id="deployBtn" class="w-full py-4 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-400 font-bold text-sm cursor-not-allowed flex items-center justify-center gap-2" disabled>Deploy Sekarang</button>
+        <div id="progressContainer" class="hidden mt-4">
+          <div class="flex justify-between text-xs font-bold mb-1">
+            <span class="text-blue-500">Memproses...</span>
+            <span id="progressText" class="text-slate-500">0%</span>
+          </div>
+          <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-2 overflow-hidden">
+            <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HASIL DEPLOYMENT -->
+      <div id="deployResultContainer" class="hidden mb-8 animate-fade-in">
+        <div class="flex items-center gap-3 mb-4">
+          <h2 class="text-xl font-extrabold tracking-tight">Deployment Results</h2>
+          <span class="bg-blue-500/10 text-blue-500 text-xs font-bold px-2.5 py-0.5 rounded-full" id="resultProjectCount">1 project</span>
+        </div>
+
+        <!-- Card Utama -->
+        <div class="glass rounded-2xl p-5 sm:p-6 mb-4 relative border-t-2 border-t-blue-500">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_#10b981]"></span>
+              <h3 class="text-lg font-bold font-mono" id="resultProjectName">project-name</h3>
+            </div>
+            <span class="bg-blue-500/10 text-blue-500 text-[10px] font-bold px-2.5 py-1 rounded-md border border-blue-500/20">Vercel</span>
+          </div>
+
+          <div class="mb-4">
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">URL</p>
+            <div class="bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-lg p-2.5 font-mono text-xs text-slate-500 truncate select-all" id="resultProjectUrl">
+              https://project-name.vercel.app
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 mb-5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <span id="resultDate">20 Nov, 15:58</span>
+          </div>
+
+          <div class="flex gap-2">
+            <button id="copyResultUrlBtn" class="flex-1 py-2.5 rounded-lg bg-blue-500/10 text-blue-500 text-xs font-bold hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy URL
+            </button>
+            <a id="visitResultUrlBtn" href="#" target="_blank" rel="noopener" class="flex-1 py-2.5 rounded-lg bg-blue-500/10 text-blue-500 text-xs font-bold hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg> Visit
+            </a>
+          </div>
+        </div>
+
+        <!-- Grid Statistik -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="glass rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <svg class="w-5 h-5 text-blue-500 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+            <p class="text-xl font-bold" id="statTotalDeploy">1</p>
+            <p class="text-[10px] text-slate-500 font-semibold">Total Deployments</p>
+          </div>
+          <div class="glass rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <svg class="w-5 h-5 text-blue-500 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+            <p class="text-xl font-bold" id="statVercelProjects">1</p>
+            <p class="text-[10px] text-slate-500 font-semibold">Vercel Projects</p>
+          </div>
+          <div class="glass rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <svg class="w-5 h-5 text-blue-500 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+            <p class="text-xl font-bold" id="statCustomDomains">0</p>
+            <p class="text-[10px] text-slate-500 font-semibold">Custom Domains</p>
+          </div>
+          <div class="glass rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <svg class="w-5 h-5 text-blue-500 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            <p class="text-xl font-bold" id="statActiveNow">1</p>
+            <p class="text-[10px] text-slate-500 font-semibold">Active Now</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass rounded-2xl p-5 sm:p-8">
+        <h2 class="text-lg font-bold mb-5 flex items-center gap-2"><svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Riwayat</h2>
+        <div id="historyList" class="space-y-2"><p class="text-sm text-slate-500 italic">Belum ada riwayat.</p></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL LOGIN / SETUP -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal-box p-6 sm:p-8">
+      <button class="absolute top-5 right-5 text-slate-400 cursor-pointer text-2xl leading-none" data-close="loginModal">&times;</button>
+      <h2 class="text-2xl font-bold mb-2 text-center">Owner Access</h2>
+      <p class="text-xs text-center text-slate-500 mb-4">Hanya pemilik situs yang bisa masuk</p>
+      
+      <div id="credentialStatus" class="mb-4 p-2 rounded-lg bg-green-500/10 border border-green-500/20 text-[10px] text-green-600 dark:text-green-400 flex items-center gap-2">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+        <span id="credentialStatusText">Kredensial sudah diatur</span>
+      </div>
+      
+      <div id="setupPanel" class="hidden mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+        <p class="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mb-2">⚙️ Buat kredensial owner:</p>
+        <input type="email" id="setupEmail" class="input-pro mb-2 text-xs" placeholder="Email owner">
+        <input type="password" id="setupPassword" class="input-pro mb-2 text-xs" placeholder="Password owner (min 4 karakter)">
+        <button type="button" id="generateHashBtn" class="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold cursor-pointer">🔐 Buat Kredensial</button>
+        <p id="hashResult" class="mt-2 text-[10px] font-mono text-green-600 dark:text-green-400 hidden break-all"></p>
+      </div>
+      
+      <div id="loginFormPanel">
+        <form id="loginForm">
+          <input type="email" id="loginEmail" required class="input-pro mb-4" placeholder="Email">
+          <input type="password" id="loginPassword" required class="input-pro mb-6" placeholder="Password">
+          <button type="submit" class="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold cursor-pointer">Masuk</button>
+        </form>
+      </div>
+      
+      <div class="mt-4 text-center">
+        <button type="button" id="showSetupBtn" class="text-[10px] text-slate-500 hover:text-blue-500 underline cursor-pointer">Lupa kredensial? Verifikasi email untuk reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL OWNER PANEL -->
+  <div id="ownerModal" class="modal-overlay">
+    <div class="modal-box wide">
+      <button class="absolute top-4 right-4 text-slate-400 z-20 cursor-pointer text-2xl leading-none" data-close="ownerModal">&times;</button>
+      <div class="p-6 border-b border-black/5 dark:border-white/5">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+          Owner Panel
+        </h2>
+        <p class="text-xs text-blue-500">Feri Store — v5.3</p>
+      </div>
+      
+      <div class="flex border-b border-black/5 dark:border-white/5 px-2 overflow-x-auto">
+        <button class="tab-btn active" data-tab="tabStatus">📊 Status</button>
+        <button class="tab-btn" data-tab="tabTampilan">🎨 Tampilan</button>
+        <button class="tab-btn" data-tab="tabTeks">📝 Konten</button>
+        <button class="tab-btn" data-tab="tabToken">🔑 Token</button>
+        <button class="tab-btn" data-tab="tabRiwayat">📜 Riwayat</button>
+        <button class="tab-btn" data-tab="tabPengaturan">⚙️ Setting</button>
+        <button class="tab-btn" data-tab="tabBackup">📤 Backup</button>
+        <button class="tab-btn" data-tab="tabInfo">ℹ️ Info</button>
+      </div>
+
+      <div class="p-5 sm:p-6 overflow-y-auto" style="max-height:55vh;">
+        
+        <div id="tabStatus" class="tab-content">
+          <div class="bg-black/5 dark:bg-white/5 rounded-xl p-4 mb-4">
+            <p class="text-xs font-semibold mb-2">Level Owner: <span id="ownerLevelDisplay" class="text-blue-500 font-bold">1</span></p>
+            <div class="w-full bg-black/10 dark:bg-black/50 rounded-full h-2">
+              <div id="levelProgressBar" class="bg-blue-500 h-2 rounded-full transition-all" style="width:0%"></div>
+            </div>
+            <p class="text-[10px] text-right mt-1"><span id="deployCountDisplay">0</span> / 10 Deploy</p>
+          </div>
+          <div class="grid grid-cols-5 gap-1.5 mb-4" id="levelGrid"></div>
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+              <p class="text-[10px] text-slate-500 uppercase font-bold">Total Deploy</p>
+              <p class="text-2xl font-bold text-blue-500" id="totalDeployStat">0</p>
+            </div>
+            <div class="bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+              <p class="text-[10px] text-slate-500 uppercase font-bold">Total File</p>
+              <p class="text-2xl font-bold text-green-500" id="totalFilesStat">0</p>
+            </div>
+          </div>
+        </div>
+        
+        <div id="tabTampilan" class="tab-content hidden">
+          <h3 class="text-xs font-bold mb-2">🎨 Warna Tema</h3>
+          <div class="flex gap-2 mb-6 flex-wrap">
+            <button type="button" data-theme-color="#3b82f6" data-theme-glow="59, 130, 246" class="w-10 h-10 rounded-full bg-blue-500 cursor-pointer border-2 border-white shadow-lg"></button>
+            <button type="button" data-theme-color="#8b5cf6" data-theme-glow="139, 92, 246" class="w-10 h-10 rounded-full bg-purple-500 cursor-pointer border-2 border-white shadow-lg"></button>
+            <button type="button" data-theme-color="#10b981" data-theme-glow="16, 185, 129" class="w-10 h-10 rounded-full bg-emerald-500 cursor-pointer border-2 border-white shadow-lg"></button>
+            <button type="button" data-theme-color="#ef4444" data-theme-glow="239, 68, 68" class="w-10 h-10 rounded-full bg-red-500 cursor-pointer border-2 border-white shadow-lg"></button>
+            <button type="button" data-theme-color="#f59e0b" data-theme-glow="245, 158, 11" class="w-10 h-10 rounded-full bg-amber-500 cursor-pointer border-2 border-white shadow-lg"></button>
+            <button type="button" data-theme-color="#ec4899" data-theme-glow="236, 72, 153" class="w-10 h-10 rounded-full bg-pink-500 cursor-pointer border-2 border-white shadow-lg"></button>
+            <button type="button" data-theme-color="#06b6d4" data-theme-glow="6, 182, 212" class="w-10 h-10 rounded-full bg-cyan-500 cursor-pointer border-2 border-white shadow-lg"></button>
+          </div>
+          
+          <h3 class="text-xs font-bold mb-2">🖼️ Ganti Logo (max 2MB)</h3>
+          <input type="file" id="logoUpload" accept="image/*" class="block w-full text-xs mb-4">
+          
+          <h3 class="text-xs font-bold mb-2">🖼️ Ganti Banner (max 5MB)</h3>
+          <input type="file" id="bannerUpload" accept="image/*" class="block w-full text-xs mb-4">
+          
+          <button id="resetLogoBtn" type="button" class="w-full py-2 bg-orange-500/10 text-orange-500 rounded-lg text-xs font-bold hover:bg-orange-500/20 mb-2 cursor-pointer">🔄 Hapus Logo Kustom</button>
+          <button id="resetBannerBtn" type="button" class="w-full py-2 bg-orange-500/10 text-orange-500 rounded-lg text-xs font-bold hover:bg-orange-500/20 mb-4 cursor-pointer">🔄 Hapus Banner Kustom</button>
+          
+          <button id="factoryResetBtn" type="button" class="w-full py-2 bg-red-500/10 text-red-500 rounded-lg text-xs font-bold hover:bg-red-500/20 cursor-pointer">⚠️ Reset ke Pengaturan Awal</button>
+        </div>
+        
+        <div id="tabTeks" class="tab-content hidden">
+          <label class="block text-xs font-bold mb-1">Nama Website</label>
+          <input type="text" id="inputSiteName" class="input-pro mb-3">
+          <label class="block text-xs font-bold mb-1">Warna Nama</label>
+          <input type="color" id="inputSiteNameColor" class="w-full h-10 mb-3 rounded">
+          <label class="block text-xs font-bold mb-1">Judul Utama (baris 1 = atas, baris 2 = highlight)</label>
+          <textarea id="inputHeroTitle" rows="2" class="input-pro mb-3"></textarea>
+          <label class="block text-xs font-bold mb-1">Deskripsi</label>
+          <textarea id="inputHeroDesc" rows="2" class="input-pro mb-4"></textarea>
+        </div>
+
+        <div id="tabToken" class="tab-content hidden">
+          <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-4">
+            <p class="text-[11px] text-yellow-600 dark:text-yellow-400 font-semibold">
+              ⚠️ Token disimpan di memori + session. Hilang saat tab ditutup.
+            </p>
+          </div>
+          <label class="block text-xs font-bold mb-1">Vercel Personal Access Token</label>
+          <input type="password" id="inputVercelToken" class="input-pro font-mono mb-2" placeholder="vercel_xxxxxxxxxxxxxxxx">
+          <p class="text-[10px] text-slate-500 mb-4">
+            Buat token di <a href="https://vercel.com/account/tokens" target="_blank" rel="noopener" class="text-blue-500 underline">vercel.com/account/tokens</a>.
+          </p>
+          <div class="flex gap-2 mb-4">
+            <button id="saveTokenBtn" type="button" class="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-blue-700">💾 Simpan</button>
+            <button id="testTokenBtn" type="button" class="flex-1 py-2.5 bg-blue-500/10 text-blue-500 rounded-lg text-xs font-bold cursor-pointer hover:bg-blue-500/20">🧪 Test</button>
+          </div>
+          <button id="clearTokenBtn" type="button" class="w-full py-2 bg-red-500/10 text-red-500 rounded-lg text-xs font-bold hover:bg-red-500/20 cursor-pointer">🗑️ Hapus Token</button>
+          <div id="vercelTokenStatus" class="mt-4 text-[11px] font-mono p-2 rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 hidden"></div>
+        </div>
+
+        <div id="tabRiwayat" class="tab-content hidden">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs font-bold">Daftar Deploy</p>
+            <button id="clearHistoryBtn" type="button" class="text-[10px] text-red-500 hover:text-red-600 font-bold cursor-pointer">Hapus Semua</button>
+          </div>
+          <div id="ownerHistoryList" class="space-y-2 max-h-80 overflow-y-auto">
+            <p class="text-xs text-slate-500 italic">Belum ada riwayat.</p>
+          </div>
+        </div>
+
+        <div id="tabPengaturan" class="tab-content hidden">
+          <h3 class="text-xs font-bold mb-3">⚙️ Preferensi</h3>
+          
+          <div class="setting-row">
+            <div>
+              <p class="text-sm font-semibold">Auto-save</p>
+              <p class="text-[10px] text-slate-500">Simpan otomatis setiap perubahan</p>
+            </div>
+            <div class="toggle-switch" id="toggleAutoSave"></div>
+          </div>
+          
+          <div class="setting-row">
+            <div>
+              <p class="text-sm font-semibold">Notifikasi Suara</p>
+              <p class="text-[10px] text-slate-500">Bunyi saat deploy sukses</p>
+            </div>
+            <div class="toggle-switch" id="toggleSound"></div>
+          </div>
+          
+          <div class="setting-row">
+            <div>
+              <p class="text-sm font-semibold">Konfetti</p>
+              <p class="text-[10px] text-slate-500">Animasi saat deploy sukses</p>
+            </div>
+            <div class="toggle-switch active" id="toggleConfetti"></div>
+          </div>
+          
+          <div class="setting-row">
+            <div>
+              <p class="text-sm font-semibold">Mode Kompak</p>
+              <p class="text-[10px] text-slate-500">Tampilan lebih rapat</p>
+            </div>
+            <div class="toggle-switch" id="toggleCompact"></div>
+          </div>
+          
+          <h3 class="text-xs font-bold mb-3 mt-6">🔐 Sesi</h3>
+          <div class="p-3 bg-black/5 dark:bg-white/5 rounded-lg mb-3">
+            <p class="text-[10px] text-slate-500">Session expiry:</p>
+            <p class="text-xs font-mono font-bold" id="sessionExpiryInfo">-</p>
+          </div>
+          <button id="extendSessionBtn" type="button" class="w-full py-2 bg-blue-500/10 text-blue-500 rounded-lg text-xs font-bold hover:bg-blue-500/20 cursor-pointer">⏱️ Perpanjang Sesi</button>
+        </div>
+
+        <div id="tabBackup" class="tab-content hidden">
+          <h3 class="text-xs font-bold mb-3">📤 Export / Import</h3>
+          
+          <div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg mb-4">
+            <p class="text-[11px] text-blue-600 dark:text-blue-400 mb-3">
+              Backup semua pengaturan (kecuali token & kredensial) ke file JSON.
+            </p>
+            <button id="exportBackupBtn" type="button" class="w-full py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-blue-700">📥 Download Backup JSON</button>
+          </div>
+          
+          <div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-4">
+            <p class="text-[11px] text-green-600 dark:text-green-400 mb-3">
+              Restore pengaturan dari file backup (dengan validasi).
+            </p>
+            <input type="file" id="importBackupInput" accept=".json" class="hidden">
+            <button id="importBackupBtn" type="button" class="w-full py-2.5 bg-green-600 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-green-700">📤 Upload Backup JSON</button>
+          </div>
+          
+          <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg mb-3">
+            <p class="text-[11px] text-red-600 dark:text-red-400 mb-3">
+              Hapus semua data <b>kecuali kredensial owner</b>. Anda tetap bisa login.
+            </p>
+            <button id="nukeAllBtn" type="button" class="w-full py-2.5 bg-red-600 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-red-700">🧹 Hapus Data (Kecuali Kredensial)</button>
+          </div>
+          
+          <div class="p-4 bg-red-800/20 border border-red-800/30 rounded-lg">
+            <p class="text-[11px] text-red-600 dark:text-red-400 mb-3">
+              ⚠️ Hapus SEMUA termasuk kredensial. Anda harus setup ulang.
+            </p>
+            <button id="nukeAllWithCredsBtn" type="button" class="w-full py-2.5 bg-red-800 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-red-900">💀 Hapus SEMUA + Kredensial</button>
+          </div>
+        </div>
+
+        <div id="tabInfo" class="tab-content hidden">
+          <h3 class="text-xs font-bold mb-3">ℹ️ Tentang Aplikasi</h3>
+          
+          <div class="bg-black/5 dark:bg-white/5 rounded-lg p-4 mb-4 space-y-2">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">Versi Aplikasi</span>
+              <span class="font-mono font-bold">5.3.0 (Ironclad)</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">GuardianBot</span>
+              <span class="font-mono font-bold">5.3.0</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">Owner Panel</span>
+              <span class="font-mono font-bold">8 Tab</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">Mode Upload</span>
+              <span class="font-mono font-bold">1 File</span>
+            </div>
+          </div>
+          
+          <h3 class="text-xs font-bold mb-2">📋 Changelog v5.3</h3>
+          <div class="space-y-1.5 text-[11px]">
+            <div class="flex gap-2"><span class="text-green-500 font-bold">NEW</span><span class="text-slate-600 dark:text-slate-400">Full defensive guard di semua fungsi</span></div>
+            <div class="flex gap-2"><span class="text-green-500 font-bold">NEW</span><span class="text-slate-600 dark:text-slate-400">Fallback copy URL (non-HTTPS)</span></div>
+            <div class="flex gap-2"><span class="text-green-500 font-bold">NEW</span><span class="text-slate-600 dark:text-slate-400">Storage quota check</span></div>
+            <div class="flex gap-2"><span class="text-green-500 font-bold">NEW</span><span class="text-slate-600 dark:text-slate-400">Anti double-click deploy</span></div>
+            <div class="flex gap-2"><span class="text-green-500 font-bold">NEW</span><span class="text-slate-600 dark:text-slate-400">DOM null-safe check</span></div>
+            <div class="flex gap-2"><span class="text-blue-500 font-bold">FIX</span><span class="text-slate-600 dark:text-slate-400">Race condition checkFormStatus</span></div>
+            <div class="flex gap-2"><span class="text-blue-500 font-bold">FIX</span><span class="text-slate-600 dark:text-slate-400">Custom domain validasi ganda</span></div>
+            <div class="flex gap-2"><span class="text-blue-500 font-bold">FIX</span><span class="text-slate-600 dark:text-slate-400">ClickGuard reset setelah login</span></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="p-4 border-t border-black/5 dark:border-white/5 flex gap-2">
+        <button id="saveSettingsBtn" type="button" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold text-xs cursor-pointer">💾 Simpan</button>
+        <button id="logoutBtn" type="button" class="py-3 px-5 rounded-xl bg-red-500/10 text-red-500 font-bold text-xs cursor-pointer">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="docsModal" class="modal-overlay">
+    <div class="modal-box p-6 sm:p-8">
+      <button class="absolute top-5 right-5 text-slate-400 cursor-pointer text-2xl leading-none" data-close="docsModal">&times;</button>
+      <h2 class="text-2xl font-bold mb-6">Panduan Deploy</h2>
+      <div class="text-sm text-slate-600 dark:text-slate-300 space-y-3">
+        <p><strong>1. Upload:</strong> Klik "Pilih File" atau tarik 1 file HTML/ZIP ke area upload.</p>
+        <p><strong>2. Domain:</strong> Pilih Vercel Domain (gratis) atau Custom Domain (milik Anda).</p>
+        <p><strong>3. Deploy:</strong> Klik "Deploy Sekarang".</p>
+        <p><strong>4. Hasil:</strong> Link project & statistik muncul di panel Deployment Results.</p>
+        <div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-600 dark:text-green-200 mt-4">
+          🛡️ Website ini dilindungi oleh <strong>GuardianBot v5.3</strong>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 🔐 OWNER CONFIG
+    // ============================================================
+    const OWNER_CONFIG = {
+      emailHash: localStorage.getItem('ownerEmailHash') || '',
+      passHash:  localStorage.getItem('ownerPassHash')  || ''
+    };
+
+    // ============================================================
+    // 💾 SAFE STORAGE
+    // ============================================================
+    const SafeStorage = {
+      _mem: {},
+      get(key) {
+        try { return sessionStorage.getItem(key); }
+        catch(e) { return this._mem[key] || null; }
+      },
+      set(key, val) {
+        try { sessionStorage.setItem(key, val); return true; }
+        catch(e) { this._mem[key] = val; return false; }
+      },
+      remove(key) {
+        try { sessionStorage.removeItem(key); }
+        catch(e) { delete this._mem[key]; }
+      }
+    };
+
+    // ============================================================
+    // 🛡️ GUARDIAN BOT
+    // ============================================================
+    const GuardianBot = {
+      version: "5.3.0", logs: [], errorCount: 0,
+      log(type, message) {
+        try {
+          const timestamp = new Date().toLocaleTimeString('id-ID');
+          this.logs.unshift({ type, message, timestamp });
+          if (this.logs.length > 20) this.logs.pop();
+          this.renderLog();
+          console.log(`[Bot ${type.toUpperCase()}] ${message}`);
+        } catch(e) {}
+      },
+      renderLog() {
+        try {
+          const c = document.getElementById('botLogContent');
+          if (!c) return;
+          if (this.logs.length === 0) { c.innerHTML = '<p style="color:#64748b;font-size:10px;text-align:center;padding:8px;">Belum ada aktivitas.</p>'; return; }
+          c.innerHTML = this.logs.map(l => `<div class="bot-log-item bot-log-${l.type}">[${l.timestamp}] ${l.message}</div>`).join('');
+        } catch(e) {}
+      },
+      setStatus(status) {
+        try {
+          const dot = document.getElementById('botDot'); if (!dot) return;
+          dot.className = 'bot-dot';
+          if (status === 'repairing') dot.classList.add('repairing');
+          if (status === 'alert') dot.classList.add('alert');
+        } catch(e) {}
+      },
+      safeGet(key) {
+        try { const v = localStorage.getItem(key); return v === null ? null : JSON.parse(v); }
+        catch(e) { try { localStorage.removeItem(key); } catch(e2){} return null; }
+      },
+      safeSet(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          if (key === 'siteSettings') {
+            try { localStorage.setItem('siteSettings_backup', JSON.stringify(value)); } catch(e2) {}
+          }
+          return true;
+        } catch(e) { return false; }
+      },
+      sanitize(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/[<>]/g,'').replace(/javascript:/gi,'').replace(/on\w+=/gi,'').substring(0,500);
+      },
+      repair(error, context) {
+        this.errorCount++;
+        this.setStatus('repairing');
+        this.log('error', `Error: ${String(error).substring(0,60)}`);
+        setTimeout(() => this.setStatus('ok'), 2000);
+      },
+      init() {
+        window.addEventListener('error', (e) => this.repair(e.message || 'Unknown', 'global'));
+        window.addEventListener('unhandledrejection', (e) => this.repair(e.reason?.message || 'Promise', 'promise'));
+        this.log('success', `✅ Bot v${this.version} aktif.`);
+      }
+    };
+    GuardianBot.init();
+
+    // ============================================================
+    // 🔧 HASH & SESSION
+    // ============================================================
+    function simpleHash(str) {
+      let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+      for (let i = 0; i < str.length; i++) {
+        const ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+      }
+      h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+      h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+      return (h2 >>> 0).toString(16).padStart(8,'0') + (h1 >>> 0).toString(16).padStart(8,'0');
+    }
+
+    function hashPassword(email, password) {
+      const salt = "FERXZ_SALT_v2";
+      const combined = email.trim().toLowerCase() + "|" + password + "|" + salt;
+      return simpleHash(combined) + simpleHash(combined + "x");
+    }
+
+    function generateSessionToken() {
+      try {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return "owner_" + crypto.randomUUID();
+        }
+      } catch(e) {}
+      return "owner_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
+    }
+
+    function setOwnerSession() {
+      try {
+        const session = {
+          token: generateSessionToken(),
+          expiry: Date.now() + (2 * 60 * 60 * 1000),
+          verified: true
+        };
+        SafeStorage.set('ownerSession', JSON.stringify(session));
+        return true;
+      } catch(e) { return false; }
+    }
+
+    function getOwnerSession() {
+      try {
+        const raw = SafeStorage.get('ownerSession');
+        if (!raw) return null;
+        const s = JSON.parse(raw);
+        if (!s.verified || Date.now() > s.expiry) {
+          SafeStorage.remove('ownerSession');
+          return null;
+        }
+        return s;
+      } catch(e) { return null; }
+    }
+
+    function isOwner() { return !!getOwnerSession(); }
+
+    function extendOwnerSession() {
+      try {
+        const raw = SafeStorage.get('ownerSession');
+        if (!raw) return;
+        const s = JSON.parse(raw);
+        s.expiry = Date.now() + (2 * 60 * 60 * 1000);
+        SafeStorage.set('ownerSession', JSON.stringify(s));
+      } catch(e) {}
+    }
+
+    // ============================================================
+    // 🎨 STATE
+    // ============================================================
+    const defaultSettings = {
+      siteName: "FERXZ DEPLOY", siteNameColor: "#0f172a",
+      heroTitle: "Deploy Website||Tanpa Batas.",
+      heroDesc: "Upload 1 file HTML atau ZIP, langsung online dalam hitungan detik.",
+      logoUrl: null, bannerUrl: null, themeColor: "#3b82f6", themeGlow: "59, 130, 246",
+      autoSave: false, soundNotif: false, confettiEnabled: true, compactMode: false
+    };
+
+    let currentSettings = Object.assign({}, defaultSettings, GuardianBot.safeGet('siteSettings') || {});
+    let ownerLevel = parseInt(localStorage.getItem('ownerLevel')) || 1;
+    let deployCount = parseInt(localStorage.getItem('deployCount')) || 0;
+    let deployHistory = GuardianBot.safeGet('deployHistory') || [];
+    let selectedFiles = [];
+    let selectedFileName = '';
+    let isDeploying = false;
+    let loginAttempts = 0, lockoutUntil = 0, totalFailedLogins = 0;
+    let lastActivity = Date.now();
+    let _vercelTokenMem = null;
+
+    const MAX_FILE_SIZE_MB = 50;
+    const RESERVED_NAMES = ['admin','api','www','root','system','null','undefined'];
+    const VERCEL_TOKEN_KEY = 'vercelToken';
+    const VERCEL_API = 'https://api.vercel.com';
+
+    // ============================================================
+    // 🛡️ CLICK RATE LIMITER (Anti Brute-Force)
+    // ============================================================
+    const ClickGuard = {
+      _clicks: [],
+      _maxClicks: 5,
+      _windowMs: 10000,
+      _blockedUntil: 0,
+      _blockMs: 30000,
+      allow() {
+        const now = Date.now();
+        if (now < this._blockedUntil) {
+          const sisa = Math.ceil((this._blockedUntil - now) / 1000);
+          showToast(`Terlalu banyak percobaan. Tunggu ${sisa}s.`, 'error');
+          GuardianBot.log('warn', `🚫 Klik owner diblokir (${sisa}s tersisa).`);
+          return false;
+        }
+        this._clicks = this._clicks.filter(t => now - t < this._windowMs);
+        this._clicks.push(now);
+        if (this._clicks.length > this._maxClicks) {
+          this._blockedUntil = now + this._blockMs;
+          this._clicks = [];
+          showToast('Spam terdeteksi. Diblokir 30 detik.', 'error');
+          GuardianBot.log('warn', '🚨 Spam klik owner — blokir 30s.');
+          return false;
+        }
+        return true;
+      },
+      reset() {
+        this._clicks = [];
+        this._blockedUntil = 0;
+      }
+    };
+
+    // ============================================================
+    // 🍞 TOAST
+    // ============================================================
+    function showToast(message, type = 'success') {
+      try {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type === 'error' ? 'error' : type === 'bot' ? 'bot' : ''}`;
+        toast.innerHTML = `<span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+      } catch(e) {}
+    }
+
+    function playSound() {
+      if (!currentSettings.soundNotif) return;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 800;
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+      } catch(e) {}
+    }
+
+    // ============================================================
+    // 🔐 OWNER VISIBILITY
+    // ============================================================
+    function updateOwnerVisibility() {
+      try {
+        const btnOwner = document.getElementById('btnOwnerLogin');
+        const iconLock = document.getElementById('ownerIconLock');
+        const iconShield = document.getElementById('ownerIconShield');
+        const ownerActive = isOwner();
+
+        if (btnOwner) {
+          if (ownerActive) {
+            btnOwner.title = "Owner Panel (klik untuk buka)";
+            btnOwner.classList.add('text-blue-500', 'bg-blue-500/10');
+            btnOwner.classList.remove('text-slate-500', 'dark:text-slate-400');
+            if (iconLock) iconLock.classList.add('hidden');
+            if (iconShield) iconShield.classList.remove('hidden');
+          } else {
+            btnOwner.title = "Owner Access (klik untuk login)";
+            btnOwner.classList.remove('text-blue-500', 'bg-blue-500/10');
+            btnOwner.classList.add('text-slate-500', 'dark:text-slate-400');
+            if (iconLock) iconLock.classList.remove('hidden');
+            if (iconShield) iconShield.classList.add('hidden');
+          }
+        }
+      } catch(e) { GuardianBot.repair(e, 'updateOwnerVisibility'); }
+    }
+
+    // ============================================================
+    // 🔑 VERCEL TOKEN
+    // ============================================================
+    function getVercelToken() {
+      if (!isOwner()) return '';
+      if (_vercelTokenMem) return _vercelTokenMem;
+      try {
+        _vercelTokenMem = SafeStorage.get(VERCEL_TOKEN_KEY) || '';
+        return _vercelTokenMem;
+      } catch(e) { return ''; }
+    }
+
+    function saveVercelToken() {
+      if (!isOwner()) { showToast('Akses ditolak.', 'error'); return; }
+      const input = document.getElementById('inputVercelToken');
+      if (!input) return;
+      const token = (input.value || '').trim();
+      const status = document.getElementById('vercelTokenStatus');
+
+      if (!token) { showToast('Token kosong.', 'error'); return; }
+      if (token.length < 20) { showToast('Token terlalu pendek.', 'error'); return; }
+
+      try {
+        _vercelTokenMem = token;
+        SafeStorage.set(VERCEL_TOKEN_KEY, token);
+        GuardianBot.log('success', '🔑 Token disimpan.');
+        showToast('Token disimpan.', 'success');
+        input.value = '';
+        if (status) {
+          status.classList.remove('hidden');
+          status.className = 'mt-4 text-[11px] font-mono p-2 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 break-all';
+          status.textContent = `✅ Tersimpan: ${token.slice(0,12)}...${token.slice(-4)}`;
+        }
+      } catch(e) {
+        GuardianBot.repair(e, 'saveVercelToken');
+        showToast('Gagal simpan token.', 'error');
+      }
+    }
+
+    async function testVercelToken() {
+      if (!isOwner()) { showToast('Akses ditolak.', 'error'); return; }
+      const token = getVercelToken();
+      const status = document.getElementById('vercelTokenStatus');
+      if (!token) { showToast('Simpan token dulu.', 'error'); return; }
+      
+      if (status) {
+        status.classList.remove('hidden');
+        status.className = 'mt-4 text-[11px] font-mono p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600';
+        status.textContent = '⏳ Menguji token...';
+      }
+      try {
+        const res = await fetch(`${VERCEL_API}/v2/user`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const email = data.user?.email || data.email || 'unknown';
+          GuardianBot.log('success', `✅ Token valid (${email})`);
+          showToast('Token valid!', 'success');
+          if (status) {
+            status.className = 'mt-4 text-[11px] font-mono p-2 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 break-all';
+            status.textContent = `✅ Valid — ${email}`;
+          }
+        } else {
+          GuardianBot.log('error', `❌ Token ditolak: ${res.status}`);
+          showToast(`Token ditolak (HTTP ${res.status}).`, 'error');
+          if (status) {
+            status.className = 'mt-4 text-[11px] font-mono p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600';
+            status.textContent = `❌ Ditolak (HTTP ${res.status})`;
+          }
+        }
+      } catch(e) {
+        GuardianBot.repair(e, 'testVercelToken');
+        showToast('Gagal test token (network).', 'error');
+        if (status) {
+          status.className = 'mt-4 text-[11px] font-mono p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600';
+          status.textContent = '❌ Network error.';
+        }
+      }
+    }
+
+    function clearVercelToken() {
+      if (!isOwner()) { showToast('Akses ditolak.', 'error'); return; }
+      try {
+        _vercelTokenMem = null;
+        SafeStorage.remove(VERCEL_TOKEN_KEY);
+        showToast('Token dihapus.', 'bot');
+        GuardianBot.log('info', '🔑 Token dihapus.');
+        const status = document.getElementById('vercelTokenStatus');
+        if (status) status.classList.add('hidden');
+      } catch(e) { GuardianBot.repair(e, 'clearVercelToken'); }
+    }
+
+    function openTokenTab() {
+      if (!isOwner()) { showToast('Akses ditolak.', 'error'); return; }
+      openModal('ownerModal');
+      switchTabByName('tabToken');
+    }
+
+    // ============================================================
+    // 🔐 OWNER ACCESS
+    // ============================================================
+    function updateCredentialStatus() {
+      const statusEl = document.getElementById('credentialStatus');
+      const textEl = document.getElementById('credentialStatusText');
+      if (!statusEl || !textEl) return;
+      
+      if (OWNER_CONFIG.emailHash && OWNER_CONFIG.passHash) {
+        statusEl.className = 'mb-4 p-2 rounded-lg bg-green-500/10 border border-green-500/20 text-[10px] text-green-600 dark:text-green-400 flex items-center gap-2';
+        textEl.textContent = 'Kredensial sudah diatur — silakan login';
+      } else {
+        statusEl.className = 'mb-4 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-[10px] text-yellow-600 dark:text-yellow-400 flex items-center gap-2';
+        textEl.textContent = 'Kredensial belum dibuat — isi form setup';
+      }
+    }
+
+    function openOwnerAccess() {
+      if (!ClickGuard.allow()) return;
+
+      if (isOwner()) {
+        fillOwnerInputs();
+        updateOwnerVisibility();
+        updateSessionInfo();
+        openModal('ownerModal');
+        return;
+      }
+      
+      try {
+        const savedLockout = parseInt(localStorage.getItem('ownerLockoutUntil') || '0');
+        const savedFailed = parseInt(localStorage.getItem('ownerTotalFailed') || '0');
+        if (savedLockout > Date.now()) lockoutUntil = savedLockout;
+        totalFailedLogins = savedFailed;
+      } catch(e) {}
+      
+      if (Date.now() < lockoutUntil) {
+        const secs = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        showToast(`Terkunci. Coba lagi dalam ${secs >= 60 ? Math.ceil(secs/60) + ' menit' : secs + ' detik'}.`, 'error');
+        return;
+      }
+      
+      updateCredentialStatus();
+      
+      const setupPanel = document.getElementById('setupPanel');
+      const loginFormPanel = document.getElementById('loginFormPanel');
+      const showSetupBtn = document.getElementById('showSetupBtn');
+      const notSet = !OWNER_CONFIG.emailHash || !OWNER_CONFIG.passHash;
+      
+      if (notSet) {
+        if (setupPanel) setupPanel.classList.remove('hidden');
+        if (loginFormPanel) loginFormPanel.classList.add('hidden');
+        if (showSetupBtn) showSetupBtn.classList.add('hidden');
+      } else {
+        if (setupPanel) setupPanel.classList.add('hidden');
+        if (loginFormPanel) loginFormPanel.classList.remove('hidden');
+        if (showSetupBtn) showSetupBtn.classList.remove('hidden');
+      }
+      
+      const form = document.getElementById('loginForm');
+      if (form) form.reset();
+      openModal('loginModal');
+    }
+
+    function showSetupForm() {
+      if (!ClickGuard.allow()) return;
+
+      if (OWNER_CONFIG.emailHash && OWNER_CONFIG.passHash) {
+        let email = '';
+        try { email = prompt('Konfirmasi email owner untuk reset:') || ''; } catch(e) { return; }
+        if (!email) return;
+        const emailHash = simpleHash(email.toLowerCase() + "|email");
+        if (emailHash !== OWNER_CONFIG.emailHash) {
+          showToast('Email tidak cocok. Reset dibatalkan.', 'error');
+          GuardianBot.log('warn', '🚫 Percobaan reset kredensial gagal.');
+          return;
+        }
+        let yakin = false;
+        try { yakin = confirm('⚠️ PERINGATAN: Reset kredensial akan menghapus kredensial lama.\n\nAnda harus membuat kredensial BARU dan login ulang.\n\nLanjutkan?'); } catch(e) {}
+        if (!yakin) return;
+        
+        localStorage.removeItem('ownerEmailHash');
+        localStorage.removeItem('ownerPassHash');
+        OWNER_CONFIG.emailHash = '';
+        OWNER_CONFIG.passHash = '';
+      }
+      
+      const setupPanel = document.getElementById('setupPanel');
+      const loginFormPanel = document.getElementById('loginFormPanel');
+      const showSetupBtn = document.getElementById('showSetupBtn');
+      if (setupPanel) setupPanel.classList.remove('hidden');
+      if (loginFormPanel) loginFormPanel.classList.add('hidden');
+      if (showSetupBtn) showSetupBtn.classList.add('hidden');
+      updateCredentialStatus();
+    }
+
+    function handleGenerateHash() {
+      try {
+        const emailEl = document.getElementById('setupEmail');
+        const passEl = document.getElementById('setupPassword');
+        const result = document.getElementById('hashResult');
+        if (!emailEl || !passEl) return;
+        
+        const email = emailEl.value.trim();
+        const password = passEl.value;
+        
+        if (!email || !password) { showToast('Isi email & password dulu.', 'error'); return; }
+        if (password.length < 4) { showToast('Password minimal 4 karakter.', 'error'); return; }
+        
+        const emailHash = simpleHash(email.toLowerCase() + "|email");
+        const passHash = hashPassword(email, password);
+        
+        localStorage.setItem('ownerEmailHash', emailHash);
+        localStorage.setItem('ownerPassHash', passHash);
+        OWNER_CONFIG.emailHash = emailHash;
+        OWNER_CONFIG.passHash = passHash;
+        
+        if (result) {
+          result.classList.remove('hidden');
+          result.innerHTML = `✅ Kredensial tersimpan.<br>Email: <code>${GuardianBot.sanitize(email)}</code>`;
+        }
+        showToast('Kredensial berhasil dibuat!', 'success');
+        GuardianBot.log('success', '🔐 Kredensial dibuat.');
+        
+        const loginEmail = document.getElementById('loginEmail');
+        const loginPassword = document.getElementById('loginPassword');
+        if (loginEmail) loginEmail.value = email;
+        if (loginPassword) loginPassword.value = '';
+        
+        setTimeout(() => {
+          const setupPanel = document.getElementById('setupPanel');
+          const loginFormPanel = document.getElementById('loginFormPanel');
+          const showSetupBtn = document.getElementById('showSetupBtn');
+          if (setupPanel) setupPanel.classList.add('hidden');
+          if (loginFormPanel) loginFormPanel.classList.remove('hidden');
+          if (showSetupBtn) showSetupBtn.classList.remove('hidden');
+          if (loginPassword) loginPassword.focus();
+          updateCredentialStatus();
+        }, 1200);
+      } catch(e) {
+        GuardianBot.repair(e, 'handleGenerateHash');
+        showToast('Gagal generate kredensial.', 'error');
+      }
+    }
+
+    function handleLogin(e) {
+      if (e) e.preventDefault();
+      
+      if (isDeploying) {
+        showToast('Sedang deploy, tunggu selesai.', 'error');
+        return;
+      }
+
+      try {
+        if (Date.now() < lockoutUntil) {
+          showToast(`Tunggu ${Math.ceil((lockoutUntil - Date.now())/1000)} detik.`, 'error');
+          return;
+        }
+        
+        const emailEl = document.getElementById('loginEmail');
+        const passEl = document.getElementById('loginPassword');
+        if (!emailEl || !passEl) return;
+        
+        const email = emailEl.value.trim();
+        const pass = passEl.value;
+        
+        if (!OWNER_CONFIG.emailHash || !OWNER_CONFIG.passHash) {
+          showToast('Kredensial belum dibuat.', 'error');
+          showSetupForm();
+          return;
+        }
+        
+        const emailHash = simpleHash(email.toLowerCase() + "|email");
+        const passHash = hashPassword(email, pass);
+        
+        if (emailHash === OWNER_CONFIG.emailHash && passHash === OWNER_CONFIG.passHash) {
+          loginAttempts = 0;
+          totalFailedLogins = 0;
+          ClickGuard.reset();
+          try { localStorage.removeItem('ownerLockoutUntil'); } catch(e) {}
+          try { localStorage.removeItem('ownerTotalFailed'); } catch(e) {}
+          
+          closeModal('loginModal');
+          showToast("Login Berhasil!", "success");
+          GuardianBot.log('success', '👤 Owner login.');
+          
+          setOwnerSession();
+          fillOwnerInputs();
+          updateOwnerVisibility();
+          renderHistory();
+          updateOwnerUI();
+          updateSessionInfo();
+          openModal('ownerModal');
+        } else {
+          loginAttempts++;
+          totalFailedLogins++;
+          
+          let lockDuration = 0;
+          if (totalFailedLogins >= 12) lockDuration = 60 * 60 * 1000;
+          else if (totalFailedLogins >= 9) lockDuration = 10 * 60 * 1000;
+          else if (totalFailedLogins >= 6) lockDuration = 2 * 60 * 1000;
+          else if (totalFailedLogins >= 3) lockDuration = 30 * 1000;
+          
+          if (lockDuration > 0) {
+            lockoutUntil = Date.now() + lockDuration;
+            const mins = Math.ceil(lockDuration / 60000);
+            showToast(`Salah ${loginAttempts}x! Dikunci ${mins >= 1 ? mins + ' menit' : '30 detik'}.`, "error");
+            GuardianBot.log('warn', `🚨 Lockout ${mins} menit (total gagal: ${totalFailedLogins}).`);
+            closeModal('loginModal');
+            try { localStorage.setItem('ownerLockoutUntil', lockoutUntil); } catch(e) {}
+            try { localStorage.setItem('ownerTotalFailed', totalFailedLogins); } catch(e) {}
+          } else {
+            showToast(`Salah! Sisa: ${3 - loginAttempts}`, "error");
+          }
+        }
+      } catch(err) {
+        GuardianBot.repair(err, 'handleLogin');
+        showToast('Login error.', 'error');
+      }
+    }
+
+    function logoutOwner() {
+      try {
+        SafeStorage.remove('ownerSession');
+        SafeStorage.remove(VERCEL_TOKEN_KEY);
+        _vercelTokenMem = null;
+        updateOwnerVisibility();
+        renderHistory();
+        updateOwnerUI();
+        closeModal('ownerModal');
+        showToast("Logout berhasil.");
+        GuardianBot.log('info', '👤 Owner logout.');
+      } catch(e) { GuardianBot.repair(e, 'logoutOwner'); }
+    }
+
+    function updateSessionInfo() {
+      const el = document.getElementById('sessionExpiryInfo');
+      if (!el) return;
+      const s = getOwnerSession();
+      if (!s) { el.textContent = '-'; return; }
+      const remaining = Math.max(0, s.expiry - Date.now());
+      const mins = Math.floor(remaining / 60000);
+      const hrs = Math.floor(mins / 60);
+      el.textContent = hrs > 0 ? `${hrs}j ${mins % 60}m` : `${mins} menit`;
+    }
+
+    // ============================================================
+    // 🖼️ MODAL & PAGE
+    // ============================================================
+    function openModal(id) {
+      try {
+        const m = document.getElementById(id);
+        if (m) { m.classList.add('active'); document.body.style.overflow = 'hidden'; }
+      } catch(e) {}
+    }
+    function closeModal(id) {
+      try {
+        const m = document.getElementById(id);
+        if (m) { m.classList.remove('active'); document.body.style.overflow = ''; }
+      } catch(e) {}
+    }
+    function showPage(pageId) {
+      try {
+        ['homepage','workspace'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+        const target = document.getElementById(pageId);
+        if (target) target.classList.remove('hidden');
+        window.scrollTo(0, 0);
+      } catch(e) { GuardianBot.repair(e, 'showPage'); }
+    }
+    function switchTabByName(tabId) {
+      try {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        const content = document.getElementById(tabId);
+        if (content) content.classList.remove('hidden');
+        const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+        if (btn) btn.classList.add('active');
+        if (tabId === 'tabRiwayat') renderOwnerHistory();
+        if (tabId === 'tabPengaturan') updateSessionInfo();
+      } catch(e) {}
+    }
+
+    // ============================================================
+    // ⚙️ SETTINGS
+    // ============================================================
+    function loadSettings() {
+      try {
+        document.documentElement.style.setProperty('--brand-color', currentSettings.themeColor);
+        document.documentElement.style.setProperty('--brand-glow', `rgba(${currentSettings.themeGlow}, 0.5)`);
+
+        const hn = document.getElementById('headerSiteName');
+        if (hn) {
+          hn.innerText = currentSettings.siteName;
+          hn.style.color = currentSettings.siteNameColor || '';
+        }
+
+        const ht = document.getElementById('heroTitle');
+        if (ht) {
+          const parts = (currentSettings.heroTitle || '').split('||');
+          if (parts.length >= 2) {
+            ht.innerHTML = `${parts[0]}<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600" id="heroTitleHighlight">${parts[1]}</span>`;
+          } else {
+            ht.innerText = parts[0] || 'Deploy Website';
+          }
+        }
+
+        const hd = document.getElementById('heroDesc');
+        if (hd) hd.innerText = currentSettings.heroDesc;
+
+        if (currentSettings.logoUrl) {
+          const dl = document.getElementById('defaultLogo');
+          const cl = document.getElementById('customLogoImg');
+          if (dl) dl.classList.add('hidden');
+          if (cl) { cl.src = currentSettings.logoUrl; cl.classList.remove('hidden'); }
+        }
+        if (currentSettings.bannerUrl) {
+          const d = document.getElementById('defaultBannerContent');
+          const c = document.getElementById('customBannerImg');
+          if (d) d.classList.add('hidden');
+          if (c) { c.src = currentSettings.bannerUrl; c.classList.remove('hidden'); }
+        }
+
+        document.body.classList.toggle('compact-mode', !!currentSettings.compactMode);
+        
+        updateOwnerVisibility();
+        updateOwnerUI();
+        renderHistory();
+        updateToggles();
+      } catch(e) { GuardianBot.repair(e, 'loadSettings'); }
+    }
+
+    function updateToggles() {
+      const setActive = (id, active) => {
+        const el = document.getElementById(id);
+        if (el) { el.classList.toggle('active', !!active); }
+      };
+      setActive('toggleAutoSave', currentSettings.autoSave);
+      setActive('toggleSound', currentSettings.soundNotif);
+      setActive('toggleConfetti', currentSettings.confettiEnabled !== false);
+      setActive('toggleCompact', currentSettings.compactMode);
+    }
+
+    function fillOwnerInputs() {
+      if (!isOwner()) return;
+      try {
+        const i1 = document.getElementById('inputSiteName');
+        const i2 = document.getElementById('inputSiteNameColor');
+        const i3 = document.getElementById('inputHeroTitle');
+        const i4 = document.getElementById('inputHeroDesc');
+        const i5 = document.getElementById('inputVercelToken');
+        
+        if (i1) i1.value = currentSettings.siteName || '';
+        if (i2) i2.value = currentSettings.siteNameColor || '#0f172a';
+        if (i3) i3.value = (currentSettings.heroTitle || '').replace('||','\n');
+        if (i4) i4.value = currentSettings.heroDesc || '';
+        if (i5) i5.value = getVercelToken();
+      } catch(e) { GuardianBot.repair(e, 'fillOwnerInputs'); }
+    }
+
+    function updateOwnerUI() {
+      try {
+        const grid = document.getElementById('levelGrid');
+        const lvlEl = document.getElementById('ownerLevelDisplay');
+        const cntEl = document.getElementById('deployCountDisplay');
+        const barEl = document.getElementById('levelProgressBar');
+        const totalDeployEl = document.getElementById('totalDeployStat');
+        const totalFilesEl = document.getElementById('totalFilesStat');
+        
+        if (!isOwner()) {
+          if (lvlEl) lvlEl.textContent = '-';
+          if (cntEl) cntEl.textContent = '-';
+          if (barEl) barEl.style.width = '0%';
+          if (grid) grid.innerHTML = '<p class="col-span-5 text-[10px] text-slate-500 italic text-center py-2">Login owner untuk melihat level.</p>';
+          if (totalDeployEl) totalDeployEl.textContent = '-';
+          if (totalFilesEl) totalFilesEl.textContent = '-';
+          return;
+        }
+        
+        if (lvlEl) lvlEl.textContent = ownerLevel;
+        if (cntEl) cntEl.textContent = deployCount;
+        if (totalDeployEl) totalDeployEl.textContent = deployCount;
+        if (totalFilesEl) totalFilesEl.textContent = Array.isArray(deployHistory) ? deployHistory.length : 0;
+        if (barEl) {
+          let p = (deployCount % 10) * 10;
+          if (p === 0 && deployCount > 0) p = 100;
+          barEl.style.width = `${p}%`;
+        }
+        if (grid) {
+          grid.innerHTML = '';
+          for (let i = 1; i <= 10; i++) {
+            let bg = 'bg-black/5 dark:bg-white/5 text-slate-400';
+            if (i === ownerLevel) bg = 'bg-blue-600 text-white shadow-lg';
+            if (i < ownerLevel) bg = 'bg-blue-500/20 text-blue-500';
+            grid.innerHTML += `<div class="h-8 rounded-lg flex items-center justify-center font-bold text-[11px] ${bg}">Lv${i}</div>`;
+          }
+        }
+      } catch(e) { GuardianBot.repair(e, 'updateOwnerUI'); }
+    }
+
+    function changeTheme(color, glow) {
+      if (!isOwner()) { showToast('Akses ditolak.', 'error'); return; }
+      currentSettings.themeColor = color;
+      currentSettings.themeGlow = glow;
+      document.documentElement.style.setProperty('--brand-color', color);
+      document.documentElement.style.setProperty('--brand-glow', `rgba(${glow}, 0.5)`);
+      showToast('Warna diubah. Klik Simpan.', 'bot');
+    }
+
+    function saveAllSettings() {
+      if (!isOwner()) { showToast('Akses ditolak.', 'error'); return; }
+      try {
+        const i1 = document.getElementById('inputSiteName');
+        const i2 = document.getElementById('inputSiteNameColor');
+        const i3 = document.getElementById('inputHeroTitle');
+        const i4 = document.getElementById('inputHeroDesc');
+        
+        if (i1) currentSettings.siteName = GuardianBot.sanitize(i1.value) || "FERXZ DEPLOY";
+        if (i2) currentSettings.siteNameColor = i2.value;
+        if (i3) {
+          const lines = i3.value.split('\n').filter(l => l.trim());
+          if (lines.length >= 2) currentSettings.heroTitle = lines[0].trim() + '||' + lines[1].trim();
+          else currentSettings.heroTitle = (lines[0] || 'Deploy Website').trim();
+        }
+        if (i4) currentSettings.heroDesc = GuardianBot.sanitize(i4.value);
+        
+        GuardianBot.safeSet('siteSettings', currentSettings);
+        loadSettings();
+        showToast("Pengaturan disimpan!");
+        GuardianBot.log('success', '⚙️ Pengaturan disimpan.');
+        closeModal('ownerModal');
+      } catch(e) { GuardianBot.repair(e, 'saveSettings'); }
+    }
+
+    function factoryReset() {
+      if (!isOwner()) { showToast('Akses ditolak.', 'error'); return; }
+      let ok = false;
+      try { ok = confirm('Reset semua pengaturan tampilan ke awal? (Kredensial owner tetap)'); } catch(e) {}
+      if (ok) {
+        localStorage.removeItem('siteSettings');
+        localStorage.removeItem('ownerLevel');
+        localStorage.removeItem('deployCount');
+        GuardianBot.log('warn', '🔄 Factory reset.');
+        location.reload();
+      }
+    }
+
+    // ============================================================
+    // 📁 FILE HANDLING
+    // ============================================================
+    async function handleSingleFile(file) {
+      if (!file) return;
+      
+      selectedFiles = [];
+      selectedFileName = '';
+      
+      const name = file.name.toLowerCase();
+      try {
+        if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+          showToast(`File terlalu besar (max ${MAX_FILE_SIZE_MB}MB).`, 'error'); return;
+        }
+        
+        if (name.endsWith('.zip')) {
+          showToast("Mengekstrak ZIP...");
+          if (typeof JSZip === 'undefined') { showToast('JSZip tidak tersedia.', 'error'); return; }
+          const zip = new JSZip();
+          const contents = await zip.loadAsync(file);
+          const allowed = ['.html','.htm','.css','.js','.json','.png','.jpg','.jpeg','.svg','.ico','.webp','.woff','.woff2','.ttf','.otf','.eot','.gif'];
+          for (const [filename, fileData] of Object.entries(contents.files)) {
+            if (!fileData.dir) {
+              const ext = '.' + filename.split('.').pop().toLowerCase();
+              if (allowed.includes(ext)) {
+                const base64 = await fileData.async("base64");
+                selectedFiles.push({ name: filename, data: base64 });
+              }
+            }
+          }
+          if (selectedFiles.length === 0) { showToast('ZIP kosong / tidak didukung.', 'error'); return; }
+          selectedFileName = file.name;
+          
+          const hasIndex = selectedFiles.some(f => 
+            f.name === 'index.html' || f.name === './index.html' || f.name.endsWith('/index.html')
+          );
+          if (!hasIndex) {
+            const firstHtml = selectedFiles.find(f => f.name.endsWith('.html') || f.name.endsWith('.htm'));
+            if (firstHtml) {
+              firstHtml.name = 'index.html';
+              GuardianBot.log('warn', '📝 Auto-rename HTML pertama ke index.html');
+            }
+          }
+          
+          GuardianBot.log('success', `📦 ${selectedFiles.length} file diekstrak dari ZIP.`);
+          showToast(`Ekstrak ${selectedFiles.length} file.`);
+        } else if (name.endsWith('.html') || name.endsWith('.htm')) {
+          const reader = new FileReader();
+          const base64 = await new Promise((res, rej) => {
+            reader.onload = (e) => { try { res(e.target.result.split(',')[1]); } catch(err) { rej(err); } };
+            reader.onerror = rej;
+            reader.readAsDataURL(file);
+          });
+          selectedFiles.push({ name: 'index.html', data: base64 });
+          selectedFileName = file.name;
+          GuardianBot.log('success', `📄 HTML terpilih: ${file.name} → index.html`);
+          showToast(`File HTML terpilih.`);
+        } else {
+          showToast("Hanya file .html atau .zip.", 'error'); return;
+        }
+        
+        renderFileList();
+        checkFormStatus();
+      } catch(e) {
+        GuardianBot.repair(e, 'handleSingleFile');
+        showToast('Gagal: ' + e.message, 'error');
+      }
+    }
+
+    function renderFileList() {
+      try {
+        const hasFiles = selectedFiles.length > 0;
+        const clearFilesBtn = document.getElementById('clearFilesBtn');
+        const fileListContainer = document.getElementById('fileListContainer');
+        const fileList = document.getElementById('fileList');
+        const fileCountLabel = document.getElementById('fileCountLabel');
+        
+        if (clearFilesBtn) clearFilesBtn.disabled = !hasFiles;
+        if (!hasFiles) { if (fileListContainer) fileListContainer.classList.add('hidden'); return; }
+        if (fileListContainer) fileListContainer.classList.remove('hidden');
+        if (fileCountLabel) fileCountLabel.textContent = `${selectedFiles.length} file internal`;
+        if (fileList) {
+          fileList.innerHTML = `
+            <div class="file-chip bg-blue-500/10 border-blue-500/30">
+              <div class="flex items-center gap-2 min-w-0">
+                <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span class="truncate font-bold">${GuardianBot.sanitize(selectedFileName)}</span>
+              </div>
+              <span class="text-[10px] text-blue-500 ml-2 shrink-0 font-bold">${selectedFiles.length} file</span>
+            </div>
+          `;
+        }
+      } catch(e) { GuardianBot.repair(e, 'renderFileList'); }
+    }
+
+    function clearFiles() {
+      try {
+        selectedFiles = []; selectedFileName = '';
+        const fc = document.getElementById('fileListContainer');
+        const fl = document.getElementById('fileList');
+        const pn = document.getElementById('projectName');
+        const up = document.getElementById('urlPreview');
+        if (fc) fc.classList.add('hidden');
+        if (fl) fl.innerHTML = '';
+        if (pn) pn.value = '';
+        if (up) up.textContent = 'my-awesome-project';
+        renderFileList();
+        checkFormStatus();
+        showToast('File dihapus.', 'bot');
+        GuardianBot.log('info', '🗑️ File dibersihkan.');
+      } catch(e) { GuardianBot.repair(e, 'clearFiles'); }
+    }
+
+    // ============================================================
+    // 🛡️ CHECK FORM STATUS
+    // ============================================================
+    function checkFormStatus() {
+      try {
+        const projectNameInput = document.getElementById('projectName');
+        const customDomainInput = document.getElementById('customDomainInput');
+        const deployBtn = document.getElementById('deployBtn');
+
+        if (!projectNameInput || !deployBtn) return;
+
+        if (!Array.isArray(selectedFiles)) selectedFiles = [];
+        if (typeof isDeploying !== 'boolean') isDeploying = false;
+
+        let isValidConfig = false;
+        const panelVercel = document.getElementById('panelVercel');
+        const isVercel = panelVercel ? !panelVercel.classList.contains('hidden') : true;
+        
+        if (isVercel) {
+          const nameVal = (projectNameInput.value || '').trim();
+          isValidConfig = nameVal.length > 0 &&
+                          nameVal.length <= 63 &&
+                          /^[a-z0-9-]+$/.test(nameVal) &&
+                          !RESERVED_NAMES.includes(nameVal);
+        } else if (customDomainInput) {
+          const domainVal = (customDomainInput.value || '').trim().toLowerCase();
+          isValidConfig = /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domainVal);
+        }
+
+        const ok = selectedFiles.length > 0 && isValidConfig && !isDeploying;
+
+        if (ok) {
+          deployBtn.classList.remove('bg-slate-200','dark:bg-slate-800','text-slate-400','cursor-not-allowed');
+          deployBtn.classList.add('bg-blue-600','text-white','hover:bg-blue-700','cursor-pointer');
+          deployBtn.disabled = false;
+        } else {
+          deployBtn.classList.add('bg-slate-200','dark:bg-slate-800','text-slate-400','cursor-not-allowed');
+          deployBtn.classList.remove('bg-blue-600','text-white','hover:bg-blue-700','cursor-pointer');
+          deployBtn.disabled = true;
+        }
+      } catch (e) {
+        try {
+          const deployBtn = document.getElementById('deployBtn');
+          if (deployBtn) deployBtn.disabled = true;
+        } catch (_) {}
+        if (typeof GuardianBot !== 'undefined' && GuardianBot.repair) {
+          GuardianBot.repair(e, 'checkFormStatus');
+        }
+      }
+    }
+
+    // ============================================================
+    // 🚀 DEPLOY
+    // ============================================================
+    async function performDeploy() {
+      const deployBtn = document.getElementById('deployBtn');
+      if (!deployBtn || deployBtn.disabled || isDeploying) return;
+      
+      if (selectedFiles.length === 0) {
+        showToast('Upload file dulu sebelum deploy.', 'error');
+        return;
+      }
+      
+      const panelCustom = document.getElementById('panelCustom');
+      const isCustom = panelCustom ? !panelCustom.classList.contains('hidden') : false;
+      let projectName = '';
+      let finalTargetDomain = '';
+
+      if (isCustom) {
+        const customDom = (document.getElementById('customDomainInput')?.value || '').trim().toLowerCase();
+        if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(customDom)) {
+          showToast('Format custom domain tidak valid.', 'error');
+          return;
+        }
+        projectName = customDom.split('.')[0].replace(/[^a-z0-9-]/g, '-');
+        finalTargetDomain = customDom;
+      } else {
+        projectName = (document.getElementById('projectName')?.value || '').trim();
+      }
+
+      if (!projectName) { showToast('Konfigurasi domain tidak valid.', 'error'); return; }
+
+      isDeploying = true;
+      checkFormStatus();
+
+      const progressContainer = document.getElementById('progressContainer');
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+
+      if (progressContainer) progressContainer.classList.remove('hidden');
+      let progress = 0;
+      const pi = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        if (progressBar) progressBar.style.width = `${progress}%`;
+        if (progressText) progressText.textContent = `${Math.round(progress)}%`;
+      }, 300);
+
+      deployBtn.innerHTML = `🤖 Memproses...`;
+      GuardianBot.log('info', `🚀 Deploy "${projectName}" dimulai...`);
+
+      try {
+        let url = null;
+        const token = getVercelToken();
+
+        if (token) {
+          try {
+            const vercelFiles = selectedFiles.map(f => ({
+              file: f.name, data: f.data, encoding: 'base64'
+            }));
+
+            const response = await fetch(`${VERCEL_API}/v13/deployments`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ name: projectName, files: vercelFiles, target: 'production' })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error?.message || `Vercel HTTP ${response.status}`);
+
+            if (isCustom) {
+              url = `https://${finalTargetDomain}`;
+            } else {
+              const deployUrl = data.url || (data.alias && data.alias[0]) || `${projectName}.vercel.app`;
+              url = deployUrl.startsWith('http') ? deployUrl : `https://${deployUrl}`;
+            }
+            GuardianBot.log('success', `✅ Deploy sukses: ${url}`);
+          } catch (vercelErr) {
+            GuardianBot.log('error', `Vercel: ${vercelErr.message}. Fallback.`);
+            showToast(`Vercel: ${vercelErr.message}. Mode simulasi.`, 'bot');
+            url = isCustom 
+              ? `https://${finalTargetDomain}` 
+              : `https://${projectName}.vercel.app`;
+          }
+        } else {
+          GuardianBot.log('warn', 'Token kosong. Simulasi.');
+          showToast('Token belum diatur. Mode simulasi.', 'bot');
+          url = isCustom 
+              ? `https://${finalTargetDomain}` 
+              : `https://${projectName}.vercel.app`;
+        }
+
+        clearInterval(pi);
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressText) progressText.textContent = '100%';
+        setTimeout(() => {
+          if (progressContainer) progressContainer.classList.add('hidden');
+          if (progressBar) progressBar.style.width = '0%';
+        }, 1000);
+
+        finalizeDeploy(projectName, url, isCustom);
+      } catch (error) {
+        clearInterval(pi);
+        if (progressContainer) progressContainer.classList.add('hidden');
+        GuardianBot.log('error', `Deploy gagal: ${error.message}`);
+        const fallbackUrl = isCustom 
+              ? `https://${finalTargetDomain}` 
+              : `https://${projectName}.vercel.app`;
+        finalizeDeploy(projectName, fallbackUrl, isCustom);
+      } finally {
+        isDeploying = false;
+        deployBtn.innerHTML = `Deploy Sekarang`;
+        checkFormStatus();
+      }
+    }
+
+    function finalizeDeploy(projectName, url, isCustomDomain) {
+      try {
+        if (currentSettings.confettiEnabled !== false && typeof confetti === 'function') {
+          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        }
+        playSound();
+        showToast("Deploy Berhasil!", "success");
+        GuardianBot.log('success', `✅ Deploy "${projectName}" sukses.`);
+
+        const dateStr = new Date().toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        if (!Array.isArray(deployHistory)) deployHistory = [];
+        deployHistory.unshift({ projectName, url, date: dateStr });
+        if (deployHistory.length > 20) deployHistory.splice(20);
+        GuardianBot.safeSet('deployHistory', deployHistory);
+        
+        renderHistory();
+        renderOwnerHistory();
+
+        deployCount++;
+        localStorage.setItem('deployCount', deployCount);
+        if (deployCount % 10 === 0 && ownerLevel < 10) {
+          ownerLevel++;
+          localStorage.setItem('ownerLevel', ownerLevel);
+          setTimeout(() => showToast(`🎉 SELAMAT! Level ${ownerLevel}!`), 1500);
+        }
+        updateOwnerUI();
+
+        showDeployResult(projectName, url, isCustomDomain);
+        
+        // Reset state files tanpa menyentuh input projectName / customDomain
+        selectedFiles = [];
+        selectedFileName = '';
+        const fc = document.getElementById('fileListContainer');
+        const fl = document.getElementById('fileList');
+        if (fc) fc.classList.add('hidden');
+        if (fl) fl.innerHTML = '';
+        renderFileList();
+        checkFormStatus();
+        
+      } catch(e) { GuardianBot.repair(e, 'finalizeDeploy'); }
+    }
+
+    async function showDeployResult(projectName, url, isCustomDomain) {
+      try {
+        if (!deployHistory || !Array.isArray(deployHistory)) deployHistory = [];
+        
+        const totalDeploy = deployHistory.length;
+        const uniqueProjects = new Set(deployHistory.map(item => item.projectName)).size;
+        const customDomainCount = deployHistory.filter(item => !item.url.includes('.vercel.app')).length;
+
+        const elTotal = document.getElementById('statTotalDeploy');
+        const elVercel = document.getElementById('statVercelProjects');
+        const elCustom = document.getElementById('statCustomDomains');
+        const elActive = document.getElementById('statActiveNow');
+
+        if (elTotal) elTotal.textContent = totalDeploy;
+        if (elVercel) elVercel.textContent = uniqueProjects;
+        if (elCustom) elCustom.textContent = customDomainCount;
+        if (elActive) elActive.textContent = uniqueProjects;
+
+        const elCount = document.getElementById('resultProjectCount');
+        const elName = document.getElementById('resultProjectName');
+        const elUrl = document.getElementById('resultProjectUrl');
+        const elDate = document.getElementById('resultDate');
+
+        if (elCount) elCount.textContent = `${uniqueProjects} project`;
+        if (elName) elName.textContent = projectName;
+        if (elUrl) elUrl.textContent = url;
+        if (elDate) elDate.textContent = new Date().toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+        const visitBtn = document.getElementById('visitResultUrlBtn');
+        if (visitBtn) visitBtn.href = url;
+
+        const copyBtn = document.getElementById('copyResultUrlBtn');
+        if (copyBtn) {
+          const newCopyBtn = copyBtn.cloneNode(true);
+          copyBtn.parentNode.replaceChild(newCopyBtn, copyBtn);
+          
+          newCopyBtn.addEventListener('click', async () => {
+            let copySuccess = false;
+            
+            // Metode 1: Clipboard API Modern (HTTPS/localhost)
+            if (navigator.clipboard && window.isSecureContext) {
+              try {
+                await navigator.clipboard.writeText(url);
+                copySuccess = true;
+              } catch (e) {
+                copySuccess = false;
+              }
+            }
+            
+            // Metode 2: Fallback textarea (HTTP/non-secure)
+            if (!copySuccess) {
+              try {
+                const textArea = document.createElement("textarea");
+                textArea.value = url;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                textArea.remove();
+                copySuccess = true;
+              } catch (e) {
+                copySuccess = false;
+              }
+            }
+            
+            if (copySuccess) {
+              showToast('URL berhasil dicopy!', 'success');
+              GuardianBot.log('info', '📋 URL dicopy.');
+              const originalHtml = newCopyBtn.innerHTML;
+              newCopyBtn.innerHTML = '✅ Copied!';
+              setTimeout(() => newCopyBtn.innerHTML = originalHtml, 2000);
+            } else {
+              showToast('Gagal copy URL. Silakan salin manual.', 'error');
+              GuardianBot.log('error', '❌ Copy URL gagal.');
+            }
+          });
+        }
+
+        const container = document.getElementById('deployResultContainer');
+        if (container) {
+          container.classList.remove('hidden');
+          container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+      } catch(e) { GuardianBot.repair(e, 'showDeployResult'); }
+    }
+
+    function renderHistory() {
+      try {
+        const h = document.getElementById('historyList');
+        if (!h) return;
+        
+        if (!isOwner()) {
+          if (deployHistory.length > 0) {
+            h.innerHTML = '<p class="text-sm text-slate-500 italic flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Login owner untuk melihat riwayat.</p>';
+          } else {
+            h.innerHTML = '<p class="text-sm text-slate-500 italic">Belum ada riwayat.</p>';
+          }
+          return;
+        }
+        
+        if (!deployHistory || deployHistory.length === 0) {
+          h.innerHTML = '<p class="text-sm text-slate-500 italic">Belum ada riwayat.</p>';
+          return;
+        }
+        h.innerHTML = deployHistory.map((item) => `
+          <div class="flex items-center justify-between p-3 sm:p-4 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-xl gap-2">
+            <div class="min-w-0 flex-1">
+              <p class="font-bold text-sm truncate">${GuardianBot.sanitize(item.projectName)}</p>
+              <p class="text-[10px] text-slate-500">${item.date}</p>
+            </div>
+            <a href="${GuardianBot.sanitize(item.url)}" target="_blank" rel="noopener" class="px-3 py-1.5 bg-blue-500/10 text-blue-500 text-[11px] font-bold rounded-lg hover:bg-blue-500/20 shrink-0">Visit</a>
+          </div>
+        `).join('');
+      } catch(e) { GuardianBot.repair(e, 'renderHistory'); }
+    }
+
+    function renderOwnerHistory() {
+      try {
+        const h = document.getElementById('ownerHistoryList');
+        if (!h || !isOwner()) return;
+        
+        if (!deployHistory || deployHistory.length === 0) {
+          h.innerHTML = '<p class="text-xs text-slate-500 italic">Belum ada riwayat.</p>';
+          return;
+        }
+        h.innerHTML = deployHistory.map((item, idx) => `
+          <div class="flex items-center justify-between p-2 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-lg gap-2" data-idx="${idx}">
+            <div class="min-w-0 flex-1">
+              <p class="font-bold text-xs truncate">${GuardianBot.sanitize(item.projectName)}</p>
+              <p class="text-[9px] text-slate-500">${item.date}</p>
+            </div>
+            <div class="flex gap-1 shrink-0">
+              <a href="${GuardianBot.sanitize(item.url)}" target="_blank" rel="noopener" class="px-2 py-1 bg-blue-500/10 text-blue-500 text-[10px] font-bold rounded hover:bg-blue-500/20">Visit</a>
+              <button class="delete-hist-btn px-2 py-1 bg-red-500/10 text-red-500 text-[10px] font-bold rounded hover:bg-red-500/20">Hapus</button>
+            </div>
+          </div>
+        `).join('');
+        
+        h.querySelectorAll('.delete-hist-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const parent = btn.closest('[data-idx]');
+            if (!parent) return;
+            const idx = parseInt(parent.dataset.idx);
+            if (isNaN(idx)) return;
+            deployHistory.splice(idx, 1);
+            GuardianBot.safeSet('deployHistory', deployHistory);
+            renderOwnerHistory();
+            renderHistory();
+            updateOwnerUI();
+            showToast('Riwayat dihapus.', 'bot');
+          });
+        });
+      } catch(e) { GuardianBot.repair(e, 'renderOwnerHistory'); }
+    }
+
+    // ============================================================
+    // 📤 EXPORT / IMPORT
+    // ============================================================
+    function exportBackup() {
+      if (!isOwner()) return;
+
+      let objectUrl = null;
+      let anchor = null;
+
+      try {
+        const backup = {
+          version: '5.3.0',
+          exported: new Date().toISOString(),
+          settings: currentSettings,
+          history: deployHistory,
+          level: ownerLevel,
+          deployCount: deployCount,
+          theme: (() => { try { return localStorage.theme || 'auto'; } catch(e) { return 'auto'; } })()
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+
+        if (!(blob instanceof Blob) || blob.size === 0) {
+          throw new Error('Blob kosong/tidak valid');
+        }
+
+        objectUrl = URL.createObjectURL(blob);
+
+        if (!objectUrl || typeof objectUrl !== 'string') {
+          throw new Error('Gagal membuat object URL');
+        }
+
+        anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = `ferxz-backup-${Date.now()}.json`;
+        anchor.rel = 'noopener';
+        anchor.style.display = 'none';
+
+        document.body.appendChild(anchor);
+        anchor.click();
+
+        showToast('Backup berhasil diunduh.', 'success');
+        GuardianBot.log('success', '📥 Backup diexport.');
+
+      } catch (e) {
+        GuardianBot.repair(e, 'exportBackup');
+        showToast('Gagal export backup.', 'error');
+
+      } finally {
+        try {
+          if (anchor && anchor.parentNode) {
+            anchor.parentNode.removeChild(anchor);
+          }
+        } catch (_) {}
+
+        try {
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            objectUrl = null;
+          }
+        } catch (_) {}
+
+        anchor = null;
+      }
+    }
+
+    function importBackup(file) {
+      if (!isOwner() || !file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          
+          if (typeof data !== 'object' || data === null) throw new Error('Bukan objek JSON');
+          if (!data.settings || typeof data.settings !== 'object') throw new Error('Field "settings" tidak ada');
+          if (data.settings.siteName && typeof data.settings.siteName !== 'string') throw new Error('siteName tidak valid');
+          if (data.history && !Array.isArray(data.history)) throw new Error('history bukan array');
+          if (data.history) {
+            data.history = data.history.filter(item => 
+              item && typeof item.projectName === 'string' && typeof item.url === 'string'
+            );
+          }
+          
+          let ok = false;
+          try { ok = confirm('Restore backup? Data saat ini akan ditimpa.'); } catch(e) {}
+          if (!ok) return;
+          
+          currentSettings = Object.assign({}, defaultSettings, data.settings);
+          GuardianBot.safeSet('siteSettings', currentSettings);
+          
+          if (data.history) {
+            deployHistory = data.history.slice(0, 20);
+            GuardianBot.safeSet('deployHistory', deployHistory);
+          }
+          if (typeof data.level === 'number' && data.level >= 1 && data.level <= 10) {
+            ownerLevel = data.level;
+            localStorage.setItem('ownerLevel', ownerLevel);
+          }
+          if (typeof data.deployCount === 'number' && data.deployCount >= 0) {
+            deployCount = data.deployCount;
+            localStorage.setItem('deployCount', deployCount);
+          }
+          
+          if (data.theme && ['light','dark','auto'].includes(data.theme)) {
+            try {
+              if (data.theme === 'auto') {
+                localStorage.removeItem('theme');
+                if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } else {
+                localStorage.theme = data.theme;
+                document.documentElement.classList.toggle('dark', data.theme === 'dark');
+              }
+            } catch(e) {}
+          }
+          
+          loadSettings();
+          updateOwnerUI();
+          renderHistory();
+          renderOwnerHistory();
+          showToast('Backup berhasil direstore!', 'success');
+          GuardianBot.log('success', '📤 Backup direstore.');
+        } catch(err) {
+          showToast('File backup tidak valid: ' + err.message, 'error');
+          GuardianBot.repair(err, 'importBackup');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function nukeAllData(includeCredentials) {
+      if (!isOwner()) return;
+      
+      try {
+        if (includeCredentials) {
+          if (!confirm('⚠️⚠️ HAPUS SEMUA TERMASUK KREDENSIAL?\n\nAnda harus setup ulang setelah ini.')) return;
+          if (!confirm('Yakin 100%? Tidak bisa dibatalkan!')) return;
+          
+          localStorage.clear();
+          sessionStorage.clear();
+          _vercelTokenMem = null;
+          showToast('Semua data dihapus. Reload...', 'bot');
+          GuardianBot.log('warn', '💣 Nuke all data (termasuk kredensial).');
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          if (!confirm('Hapus semua data (setting, riwayat, level)?\nKredensial owner tetap disimpan.')) return;
+          
+          const keepEmail = localStorage.getItem('ownerEmailHash');
+          const keepPass = localStorage.getItem('ownerPassHash');
+          localStorage.clear();
+          if (keepEmail) localStorage.setItem('ownerEmailHash', keepEmail);
+          if (keepPass) localStorage.setItem('ownerPassHash', keepPass);
+          sessionStorage.clear();
+          _vercelTokenMem = null;
+          showToast('Data dihapus (kredensial tetap). Reload...', 'bot');
+          GuardianBot.log('warn', '🧹 Nuke data (keep kredensial).');
+          setTimeout(() => location.reload(), 1200);
+        }
+      } catch(e) {
+        GuardianBot.repair(e, 'nukeAllData');
+        showToast('Gagal menghapus data.', 'error');
+      }
+    }
+
+    // ============================================================
+    // 🎯 EVENT LISTENERS
+    // ============================================================
+    function bindEvents() {
+      // Track aktivitas
+      document.addEventListener('click', () => { if (isOwner()) lastActivity = Date.now(); });
+      document.addEventListener('keydown', () => { if (isOwner()) lastActivity = Date.now(); });
+
+      // Nav
+      document.querySelectorAll('[data-nav]').forEach(btn => {
+        btn.addEventListener('click', (e) => { e.preventDefault(); showPage(btn.dataset.nav); });
+      });
+
+      // Modal
+      document.querySelectorAll('[data-modal]').forEach(btn => {
+        btn.addEventListener('click', () => openModal(btn.dataset.modal));
+      });
+      document.querySelectorAll('[data-close]').forEach(btn => {
+        btn.addEventListener('click', () => closeModal(btn.dataset.close));
+      });
+      document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(overlay.id); });
+      });
+
+      // Start Deploy
+      const startBtn = document.getElementById('startDeployBtn');
+      if (startBtn) startBtn.addEventListener('click', () => showPage('workspace'));
+
+      // Logo
+      const logoArea = document.getElementById('logoArea');
+      if (logoArea) logoArea.addEventListener('click', (e) => { e.preventDefault(); showPage('homepage'); });
+
+      // Owner button (Anti Brute Force)
+      const btnOwner = document.getElementById('btnOwnerLogin');
+      if (btnOwner) {
+        btnOwner.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!ClickGuard.allow()) return;
+          
+          const loginModal = document.getElementById('loginModal');
+          if (loginModal && loginModal.classList.contains('active')) {
+            return;
+          }
+          openOwnerAccess();
+        });
+      }
+
+      // Theme
+      const themeBtn = document.getElementById('themeToggle');
+      if (themeBtn) themeBtn.addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        try { localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'; } catch(e) {}
+      });
+
+      // Bot
+      const botWidget = document.getElementById('botWidget');
+      if (botWidget) botWidget.addEventListener('click', () => {
+        const log = document.getElementById('botLog');
+        if (log) log.classList.toggle('open');
+      });
+      const clearBotBtn = document.getElementById('clearBotLogBtn');
+      if (clearBotBtn) clearBotBtn.addEventListener('click', () => {
+        GuardianBot.logs = [];
+        GuardianBot.renderLog();
+        GuardianBot.log('info', 'Log dibersihkan.');
+      });
+
+      // Login
+      const loginForm = document.getElementById('loginForm');
+      if (loginForm) loginForm.addEventListener('submit', handleLogin);
+      const genBtn = document.getElementById('generateHashBtn');
+      if (genBtn) genBtn.addEventListener('click', handleGenerateHash);
+      const showSetupBtn = document.getElementById('showSetupBtn');
+      if (showSetupBtn) showSetupBtn.addEventListener('click', showSetupForm);
+
+      // Tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTabByName(btn.dataset.tab));
+      });
+
+      // Theme colors
+      document.querySelectorAll('[data-theme-color]').forEach(btn => {
+        btn.addEventListener('click', () => changeTheme(btn.dataset.themeColor, btn.dataset.themeGlow));
+      });
+
+      // Owner actions
+      const saveBtn = document.getElementById('saveSettingsBtn');
+      if (saveBtn) saveBtn.addEventListener('click', saveAllSettings);
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) logoutBtn.addEventListener('click', logoutOwner);
+      const resetBtn = document.getElementById('factoryResetBtn');
+      if (resetBtn) resetBtn.addEventListener('click', factoryReset);
+
+      // Logo/banner
+      const logoUpload = document.getElementById('logoUpload');
+      if (logoUpload) logoUpload.addEventListener('change', function(e) {
+        if (!isOwner()) return;
+        const file = e.target.files[0]; if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Logo max 2MB.', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          currentSettings.logoUrl = ev.target.result;
+          const cl = document.getElementById('customLogoImg');
+          const dl = document.getElementById('defaultLogo');
+          if (cl) { cl.src = ev.target.result; cl.classList.remove('hidden'); }
+          if (dl) dl.classList.add('hidden');
+          showToast('Logo diunggah. Klik Simpan.', 'bot');
+        };
+        reader.readAsDataURL(file);
+      });
+
+      const bannerUpload = document.getElementById('bannerUpload');
+      if (bannerUpload) bannerUpload.addEventListener('change', function(e) {
+        if (!isOwner()) return;
+        const file = e.target.files[0]; if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { showToast('Banner max 5MB.', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          currentSettings.bannerUrl = ev.target.result;
+          const cc = document.getElementById('customBannerImg');
+          const dc = document.getElementById('defaultBannerContent');
+          if (cc) { cc.src = ev.target.result; cc.classList.remove('hidden'); }
+          if (dc) dc.classList.add('hidden');
+          showToast('Banner diunggah. Klik Simpan.', 'bot');
+        };
+        reader.readAsDataURL(file);
+      });
+
+      const resetLogoBtn = document.getElementById('resetLogoBtn');
+      if (resetLogoBtn) resetLogoBtn.addEventListener('click', () => {
+        if (!isOwner()) return;
+        currentSettings.logoUrl = null;
+        const cl = document.getElementById('customLogoImg');
+        const dl = document.getElementById('defaultLogo');
+        if (cl) cl.classList.add('hidden');
+        if (dl) dl.classList.remove('hidden');
+        showToast('Logo dihapus. Klik Simpan.', 'bot');
+      });
+
+      const resetBannerBtn = document.getElementById('resetBannerBtn');
+      if (resetBannerBtn) resetBannerBtn.addEventListener('click', () => {
+        if (!isOwner()) return;
+        currentSettings.bannerUrl = null;
+        const cc = document.getElementById('customBannerImg');
+        const dc = document.getElementById('defaultBannerContent');
+        if (cc) cc.classList.add('hidden');
+        if (dc) dc.classList.remove('hidden');
+        showToast('Banner dihapus. Klik Simpan.', 'bot');
+      });
+
+      // File picker
+      const pickFileBtn = document.getElementById('pickFileBtn');
+      const fileInput = document.getElementById('fileInput');
+      if (pickFileBtn && fileInput) pickFileBtn.addEventListener('click', () => fileInput.click());
+      if (fileInput) fileInput.addEventListener('change', async (e) => {
+        const f = e.target.files[0];
+        if (f) await handleSingleFile(f);
+        e.target.value = '';
+      });
+
+      // Drop zone
+      const dropZone = document.getElementById('dropZone');
+      if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#3b82f6'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+        dropZone.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          dropZone.style.borderColor = '';
+          const files = Array.from(e.dataTransfer.files);
+          if (files.length === 0) return;
+          if (files.length > 1) showToast('Hanya 1 file! Mengambil file pertama.', 'bot');
+          await handleSingleFile(files[0]);
+        });
+        dropZone.addEventListener('click', () => { if (fileInput) fileInput.click(); });
+      }
+
+      // Clear files
+      const cfBtn = document.getElementById('clearFilesBtn');
+      if (cfBtn) cfBtn.addEventListener('click', clearFiles);
+
+      // Project name
+      const pnInput = document.getElementById('projectName');
+      if (pnInput) pnInput.addEventListener('input', (e) => {
+        let val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+/, '');
+        e.target.value = val;
+        const up = document.getElementById('urlPreview');
+        if (up) up.textContent = val || 'my-awesome-project';
+        const ct = document.getElementById('cnameTargetText');
+        if (ct) ct.textContent = `${val || 'nama-proyek'}.vercel.app`;
+        checkFormStatus();
+      });
+
+      // Custom Domain Input
+      const customDomainInput = document.getElementById('customDomainInput');
+      if (customDomainInput) {
+        customDomainInput.addEventListener('input', (e) => {
+          e.target.value = e.target.value.toLowerCase();
+          checkFormStatus();
+        });
+      }
+
+      // Toggle Domain Type
+      const optVercel = document.getElementById('optVercel');
+      const optCustom = document.getElementById('optCustom');
+      const panelVercel = document.getElementById('panelVercel');
+      const panelCustom = document.getElementById('panelCustom');
+
+      function updateDomainUI() {
+        if (!optVercel || !optCustom) return;
+        const activeClass = ['border-blue-500/50', 'bg-blue-500/5'];
+        const inactiveClass = ['border-black/10', 'dark:border-white/10', 'bg-transparent'];
+        const isVercel = panelVercel ? !panelVercel.classList.contains('hidden') : true;
+
+        if (isVercel) {
+          optVercel.classList.add(...activeClass);
+          optVercel.classList.remove(...inactiveClass);
+          optCustom.classList.remove(...activeClass);
+          optCustom.classList.add(...inactiveClass);
+          optVercel.querySelector('div').className = 'w-10 h-10 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-sm';
+          optCustom.querySelector('div').className = 'w-10 h-10 rounded-lg bg-black/5 dark:bg-white/5 text-slate-500 flex items-center justify-center shrink-0';
+        } else {
+          optCustom.classList.add(...activeClass);
+          optCustom.classList.remove(...inactiveClass);
+          optVercel.classList.remove(...activeClass);
+          optVercel.classList.add(...inactiveClass);
+          optCustom.querySelector('div').className = 'w-10 h-10 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-sm';
+          optVercel.querySelector('div').className = 'w-10 h-10 rounded-lg bg-black/5 dark:bg-white/5 text-slate-500 flex items-center justify-center shrink-0';
+        }
+        checkFormStatus();
+      }
+
+      if (optVercel) {
+        optVercel.addEventListener('click', () => {
+          if (panelVercel) panelVercel.classList.remove('hidden');
+          if (panelCustom) panelCustom.classList.add('hidden');
+          if (customDomainInput) customDomainInput.value = '';
+          updateDomainUI();
+        });
+      }
+
+      if (optCustom) {
+        optCustom.addEventListener('click', () => {
+          if (panelCustom) panelCustom.classList.remove('hidden');
+          if (panelVercel) panelVercel.classList.add('hidden');
+          if (pnInput) pnInput.value = '';
+          const up = document.getElementById('urlPreview');
+          if (up) up.textContent = 'my-awesome-project';
+          updateDomainUI();
+          if(customDomainInput) customDomainInput.focus();
+        });
+      }
+
+      // Deploy
+      const depBtn = document.getElementById('deployBtn');
+      if (depBtn) depBtn.addEventListener('click', performDeploy);
+
+      // Token
+      const openTokenBtn = document.getElementById('btnOpenTokenTab');
+      if (openTokenBtn) openTokenBtn.addEventListener('click', openTokenTab);
+      const saveTokBtn = document.getElementById('saveTokenBtn');
+      if (saveTokBtn) saveTokBtn.addEventListener('click', saveVercelToken);
+      const testTokBtn = document.getElementById('testTokenBtn');
+      if (testTokBtn) testTokBtn.addEventListener('click', testVercelToken);
+      const clearTokBtn = document.getElementById('clearTokenBtn');
+      if (clearTokBtn) clearTokBtn.addEventListener('click', clearVercelToken);
+
+      // History
+      const clearHistBtn = document.getElementById('clearHistoryBtn');
+      if (clearHistBtn) clearHistBtn.addEventListener('click', () => {
+        if (!isOwner()) return;
+        if (!confirm('Hapus semua riwayat deploy?')) return;
+        deployHistory = [];
+        GuardianBot.safeSet('deployHistory', deployHistory);
+        renderHistory();
+        renderOwnerHistory();
+        updateOwnerUI();
+        showToast('Riwayat dihapus.', 'bot');
+      });
+
+      // Toggles
+      const toggleAutoSave = document.getElementById('toggleAutoSave');
+      if (toggleAutoSave) toggleAutoSave.addEventListener('click', () => {
+        if (!isOwner()) return;
+        currentSettings.autoSave = !currentSettings.autoSave;
+        toggleAutoSave.classList.toggle('active', currentSettings.autoSave);
+        GuardianBot.safeSet('siteSettings', currentSettings);
+      });
+
+      const toggleSound = document.getElementById('toggleSound');
+      if (toggleSound) toggleSound.addEventListener('click', () => {
+        if (!isOwner()) return;
+        currentSettings.soundNotif = !currentSettings.soundNotif;
+        toggleSound.classList.toggle('active', currentSettings.soundNotif);
+        GuardianBot.safeSet('siteSettings', currentSettings);
+      });
+
+      const toggleConfetti = document.getElementById('toggleConfetti');
+      if (toggleConfetti) toggleConfetti.addEventListener('click', () => {
+        if (!isOwner()) return;
+        currentSettings.confettiEnabled = !currentSettings.confettiEnabled;
+        toggleConfetti.classList.toggle('active', currentSettings.confettiEnabled);
+        GuardianBot.safeSet('siteSettings', currentSettings);
+      });
+
+      const toggleCompact = document.getElementById('toggleCompact');
+      if (toggleCompact) toggleCompact.addEventListener('click', () => {
+        if (!isOwner()) return;
+        currentSettings.compactMode = !currentSettings.compactMode;
+        toggleCompact.classList.toggle('active', currentSettings.compactMode);
+        document.body.classList.toggle('compact-mode', currentSettings.compactMode);
+        GuardianBot.safeSet('siteSettings', currentSettings);
+      });
+
+      const extendBtn = document.getElementById('extendSessionBtn');
+      if (extendBtn) extendBtn.addEventListener('click', () => {
+        if (!isOwner()) return;
+        extendOwnerSession();
+        updateSessionInfo();
+        showToast('Sesi diperpanjang 2 jam.', 'success');
+      });
+
+      // Auto-save inputs
+      ['inputSiteName', 'inputSiteNameColor', 'inputHeroTitle', 'inputHeroDesc'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => {
+          if (!isOwner() || !currentSettings.autoSave) return;
+          clearTimeout(window._autoSaveTimer);
+          window._autoSaveTimer = setTimeout(() => {
+            try {
+              currentSettings.siteName = GuardianBot.sanitize(document.getElementById('inputSiteName').value) || "FERXZ DEPLOY";
+              currentSettings.siteNameColor = document.getElementById('inputSiteNameColor').value;
+              const lines = document.getElementById('inputHeroTitle').value.split('\n').filter(l => l.trim());
+              if (lines.length >= 2) currentSettings.heroTitle = lines[0].trim() + '||' + lines[1].trim();
+              else currentSettings.heroTitle = (lines[0] || 'Deploy Website').trim();
+              currentSettings.heroDesc = GuardianBot.sanitize(document.getElementById('inputHeroDesc').value);
+              GuardianBot.safeSet('siteSettings', currentSettings);
+              loadSettings();
+              showToast('Auto-saved.', 'bot');
+              GuardianBot.log('info', '💾 Auto-save.');
+            } catch(e) {}
+          }, 1500);
+        });
+      });
+
+      // Backup
+      const exportBtn = document.getElementById('exportBackupBtn');
+      if (exportBtn) exportBtn.addEventListener('click', exportBackup);
+      const importBtn = document.getElementById('importBackupBtn');
+      const importInput = document.getElementById('importBackupInput');
+      if (importBtn && importInput) {
+        importBtn.addEventListener('click', () => importInput.click());
+        importInput.addEventListener('change', (e) => {
+          if (e.target.files[0]) importBackup(e.target.files[0]);
+          e.target.value = '';
+        });
+      }
+      const nukeBtn = document.getElementById('nukeAllBtn');
+      if (nukeBtn) nukeBtn.addEventListener('click', () => nukeAllData(false));
+      const nukeCredsBtn = document.getElementById('nukeAllWithCredsBtn');
+      if (nukeCredsBtn) nukeCredsBtn.addEventListener('click', () => nukeAllData(true));
+
+      // Tilt
+      const tiltArea = document.getElementById('tiltArea');
+      const tiltElement = document.querySelector('.tilt-element');
+      if (tiltArea && tiltElement && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+        tiltArea.addEventListener('mousemove', (e) => {
+          const rect = tiltArea.getBoundingClientRect();
+          const x = e.clientX - rect.left, y = e.clientY - rect.top;
+          const cx = rect.width / 2, cy = rect.height / 2;
+          tiltElement.style.animation = 'none';
+          tiltElement.style.transform = `perspective(1000px) rotateX(${((y-cy)/cy)*-15}deg) rotateY(${((x-cx)/cx)*15}deg) scale3d(1.05,1.05,1.05)`;
+        });
+        tiltArea.addEventListener('mouseleave', () => {
+          tiltElement.style.animation = 'float-tilt 8s ease-in-out infinite';
+          tiltElement.style.transform = '';
+        });
+      }
+
+      // Auto-logout + extend
+      setInterval(() => {
+        if (isOwner()) {
+          const session = getOwnerSession();
+          if (session && (session.expiry - Date.now()) < 5 * 60 * 1000) {
+            if (Date.now() - lastActivity < 2 * 60 * 1000) {
+              extendOwnerSession();
+              GuardianBot.log('info', '⏱️ Session diperpanjang.');
+            }
+          }
+          updateSessionInfo();
+        } else {
+          const btnOwner = document.getElementById('btnOwnerLogin');
+          if (btnOwner && btnOwner.classList.contains('text-blue-500')) {
+            updateOwnerVisibility();
+            renderHistory();
+            updateOwnerUI();
+            closeModal('ownerModal');
+            showToast('Session owner habis. Login ulang.', 'bot');
+          }
+        }
+      }, 60000);
+      
+      // URL Memory leak fix
+      window.__activeObjectUrls = window.__activeObjectUrls || new Set();
+      const _origCreateObjectURL = URL.createObjectURL.bind(URL);
+      const _origRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+
+      URL.createObjectURL = function(obj) {
+        const url = _origCreateObjectURL(obj);
+        try { window.__activeObjectUrls.add(url); } catch (_) {}
+        return url;
+      };
+
+      URL.revokeObjectURL = function(url) {
+        try { window.__activeObjectUrls.delete(url); } catch (_) {}
+        return _origRevokeObjectURL(url);
+      };
+
+      window.addEventListener('beforeunload', () => {
+        try {
+          window.__activeObjectUrls.forEach(url => {
+            try { _origRevokeObjectURL(url); } catch (_) {}
+          });
+          window.__activeObjectUrls.clear();
+        } catch (_) {}
+      });
+    }
+
+    // ============================================================
+    // 🚀 INIT
+    // ============================================================
+    function init() {
+      try {
+        try {
+          if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          } else document.documentElement.classList.remove('dark');
+        } catch(e) {}
+
+        bindEvents();
+        loadSettings();
+        checkFormStatus();
+        updateOwnerVisibility();
+        GuardianBot.log('info', '✅ Semua modul siap (v5.3).');
+      } catch(e) {
+        console.error('Init error:', e);
+        GuardianBot.repair(e, 'init');
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
