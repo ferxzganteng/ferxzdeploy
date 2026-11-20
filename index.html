@@ -1727,8 +1727,19 @@
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ name: projectName, files: vercelFiles, target: 'production' })
-            });
+              body: JSON.stringify({ 
+  name: projectName, 
+  files: vercelFiles, 
+  target: 'production',
+  projectSettings: {
+    framework: null 
+  },
+  config: {
+    rewrites: [
+      { source: "/(.*)", destination: "/index.html" }
+    ]
+  }
+})
 
             const data = await response.json();
             if (!response.ok) throw new Error(data.error?.message || `Vercel HTTP ${response.status}`);
